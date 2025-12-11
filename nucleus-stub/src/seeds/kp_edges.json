@@ -1,0 +1,142 @@
+[
+  {
+    "id": "edge-1",
+    "sourceId": "t-1",
+    "targetId": "u-1",
+    "relationshipType": "ASSIGNED_TO",
+    "properties": { "assignedAt": "2025-12-08T10:00:00Z" }
+  },
+  {
+    "id": "edge-2",
+    "sourceId": "pr-1",
+    "targetId": "t-1",
+    "relationshipType": "IMPLEMENTS",
+    "properties": { "linkedAt": "2025-12-09T09:00:00Z" }
+  },
+  {
+    "id": "edge-3",
+    "sourceId": "s-1",
+    "targetId": "u-1",
+    "relationshipType": "OWNED_BY",
+    "properties": { "role": "oncall" }
+  },
+  {
+    "id": "edge-4",
+    "sourceId": "alert-1",
+    "targetId": "s-1",
+    "relationshipType": "AFFECTS",
+    "properties": { "impact": "degraded" }
+  },
+  {
+    "id": "edge-5",
+    "sourceId": "t-2",
+    "targetId": "u-3",
+    "relationshipType": "ASSIGNED_TO",
+    "properties": { "assignedAt": "2025-12-09T14:00:00Z" }
+  },
+  {
+    "id": "edge-6",
+    "sourceId": "t-2",
+    "targetId": "doc-2",
+    "relationshipType": "REFERENCES",
+    "properties": { "type": "rfc" }
+  },
+  {
+    "id": "edge-7",
+    "sourceId": "t-3",
+    "targetId": "u-2",
+    "relationshipType": "ASSIGNED_TO",
+    "properties": { "assignedAt": "2025-12-07T11:00:00Z" }
+  },
+  {
+    "id": "edge-8",
+    "sourceId": "pr-2",
+    "targetId": "u-2",
+    "relationshipType": "AUTHORED_BY",
+    "properties": {}
+  },
+  {
+    "id": "edge-9",
+    "sourceId": "pr-2",
+    "targetId": "u-1",
+    "relationshipType": "REVIEWED_BY",
+    "properties": { "status": "changes_requested" }
+  },
+  {
+    "id": "edge-10",
+    "sourceId": "alert-2",
+    "targetId": "s-2",
+    "relationshipType": "AFFECTS",
+    "properties": { "impact": "warning" }
+  },
+  {
+    "id": "edge-11",
+    "sourceId": "alert-2",
+    "targetId": "pr-2",
+    "relationshipType": "POSSIBLY_CAUSED_BY",
+    "properties": { "confidence": 0.7 }
+  },
+  {
+    "id": "edge-12",
+    "sourceId": "s-1",
+    "targetId": "doc-1",
+    "relationshipType": "DOCUMENTED_BY",
+    "properties": {}
+  },
+  {
+    "id": "edge-13",
+    "sourceId": "pr-1",
+    "targetId": "u-2",
+    "relationshipType": "REVIEWED_BY",
+    "properties": { "status": "pending" }
+  },
+  {
+    "id": "edge-14",
+    "sourceId": "pr-1",
+    "targetId": "u-3",
+    "relationshipType": "REVIEWED_BY",
+    "properties": { "status": "pending" }
+  },
+  {
+    "id": "edge-15",
+    "sourceId": "s-2",
+    "targetId": "u-2",
+    "relationshipType": "OWNED_BY",
+    "properties": { "role": "oncall" }
+  },
+  {
+    "id": "edge-16",
+    "sourceId": "s-3",
+    "targetId": "u-3",
+    "relationshipType": "OWNED_BY",
+    "properties": { "role": "oncall" }
+  },
+  {
+    "id": "edge-17",
+    "sourceId": "t-4",
+    "targetId": "pr-3",
+    "relationshipType": "IMPLEMENTED_BY",
+    "properties": {}
+  },
+  {
+    "id": "edge-18",
+    "sourceId": "pr-3",
+    "targetId": "u-3",
+    "relationshipType": "AUTHORED_BY",
+    "properties": {}
+  },
+  {
+    "id": "edge-19",
+    "sourceId": "alert-1",
+    "targetId": "t-1",
+    "relationshipType": "RELATED_TO",
+    "properties": { "reason": "error spike coincides with mobile auth issue" }
+  },
+  {
+    "id": "edge-20",
+    "sourceId": "s-3",
+    "targetId": "s-1",
+    "relationshipType": "DEPENDS_ON",
+    "properties": { "type": "auth" }
+  }
+]

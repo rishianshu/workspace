@@ -1,0 +1,86 @@
+services:
+  # PostgreSQL with pgvector
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: agent
+      POSTGRES_USER: agent
+      POSTGRES_PASSWORD: devpassword
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agent -d agent"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Temporal server
+  temporal:
+    image: temporalio/auto-setup:1.22
+    environment:
+      - DB=postgres12
+      - DB_PORT=5432
+      - POSTGRES_USER=agent
+      - POSTGRES_PWD=devpassword
+      - POSTGRES_SEEDS=postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "7233:7233"  # gRPC
+
+  # Temporal Web UI
+  temporal-ui:
+    image: temporalio/ui:2.22.0
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+    depends_on:
+      - temporal
+    ports:
+      - "8233:8080"
+
+  # Go Agent Service
+  agent-service:
+    build:
+      context: ./go-agent-service
+      dockerfile: Dockerfile
+    environment:
+      GRPC_PORT: 9000
+      NUCLEUS_URL: http://nucleus-stub:4000
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      POSTGRES_URL: postgres://agent:devpassword@postgres:5432/agent
+      TEMPORAL_HOST: temporal:7233
+    depends_on:
+      postgres:
+        condition: service_healthy
+      temporal:
+        condition: service_started
+    ports:
+      - "9000:9000"
+
+  # Rust Gateway
+  rust-gateway:
+    build:
+      context: ./rust-gateway
+      dockerfile: Dockerfile
+    environment:
+      GATEWAY_PORT: 8080
+      AGENT_SERVICE_URL: http://agent-service:9000
+      NUCLEUS_URL: http://nucleus-stub:4000
+    depends_on:
+      - agent-service
+    ports:
+      - "8080:8080"
+
+  # Nucleus Stub (existing)
+  nucleus-stub:
+    build:
+      context: ./nucleus-stub
+      dockerfile: Dockerfile
+    ports:
+      - "4000:4000"
+
+volumes:
+  postgres_data:

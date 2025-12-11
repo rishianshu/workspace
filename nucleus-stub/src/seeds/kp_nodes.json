@@ -1,0 +1,287 @@
+[
+  {
+    "id": "u-1",
+    "entityType": "user",
+    "displayName": "Rishikesh Kumar",
+    "sourceSystem": "internal",
+    "canonicalPath": "@rishi",
+    "properties": {
+      "email": "rishi@workspace.dev",
+      "role": "Tech Lead",
+      "avatar": "RK",
+      "team": "Platform"
+    },
+    "scope": { "orgId": "org-1", "projectId": "platform" }
+  },
+  {
+    "id": "u-2",
+    "entityType": "user",
+    "displayName": "Sarah Chen",
+    "sourceSystem": "internal",
+    "canonicalPath": "@sarah",
+    "properties": {
+      "email": "sarah@workspace.dev",
+      "role": "Senior Engineer",
+      "avatar": "SC",
+      "team": "Backend"
+    },
+    "scope": { "orgId": "org-1", "projectId": "backend" }
+  },
+  {
+    "id": "u-3",
+    "entityType": "user",
+    "displayName": "Alex Rodriguez",
+    "sourceSystem": "internal",
+    "canonicalPath": "@alex",
+    "properties": {
+      "email": "alex@workspace.dev",
+      "role": "Staff Engineer",
+      "avatar": "AR",
+      "team": "Infrastructure"
+    },
+    "scope": { "orgId": "org-1", "projectId": "infra" }
+  },
+  {
+    "id": "t-1",
+    "entityType": "ticket",
+    "displayName": "Fix Login Bug - 401 on Mobile",
+    "sourceSystem": "jira",
+    "canonicalPath": "AUTH-101",
+    "properties": {
+      "status": "In Progress",
+      "priority": "Critical",
+      "assignee": "u-1",
+      "reporter": "u-2",
+      "labels": ["bug", "mobile", "auth"],
+      "description": "Users are reporting 401 errors when attempting to login via the mobile app. Appears to be related to token refresh.",
+      "dueDate": "2025-12-12",
+      "storyPoints": 5
+    },
+    "scope": { "orgId": "org-1", "projectId": "auth-service" }
+  },
+  {
+    "id": "t-2",
+    "entityType": "ticket",
+    "displayName": "Implement Rate Limiting for API",
+    "sourceSystem": "jira",
+    "canonicalPath": "PLAT-205",
+    "properties": {
+      "status": "To Do",
+      "priority": "High",
+      "assignee": "u-3",
+      "reporter": "u-1",
+      "labels": ["feature", "security", "api"],
+      "description": "Add rate limiting to all public API endpoints using Redis-based token bucket algorithm.",
+      "dueDate": "2025-12-15",
+      "storyPoints": 8
+    },
+    "scope": { "orgId": "org-1", "projectId": "platform" }
+  },
+  {
+    "id": "t-3",
+    "entityType": "ticket",
+    "displayName": "Database Migration: Add User Preferences Table",
+    "sourceSystem": "jira",
+    "canonicalPath": "BACK-312",
+    "properties": {
+      "status": "In Review",
+      "priority": "Medium",
+      "assignee": "u-2",
+      "reporter": "u-1",
+      "labels": ["database", "migration"],
+      "description": "Create new user_preferences table to store notification settings and theme preferences.",
+      "dueDate": "2025-12-11",
+      "storyPoints": 3
+    },
+    "scope": { "orgId": "org-1", "projectId": "backend" }
+  },
+  {
+    "id": "t-4",
+    "entityType": "ticket",
+    "displayName": "Upgrade Kubernetes to 1.29",
+    "sourceSystem": "jira",
+    "canonicalPath": "INFRA-089",
+    "properties": {
+      "status": "Done",
+      "priority": "High",
+      "assignee": "u-3",
+      "reporter": "u-3",
+      "labels": ["infrastructure", "upgrade"],
+      "description": "Upgrade all production clusters to Kubernetes 1.29 for security patches.",
+      "completedDate": "2025-12-09",
+      "storyPoints": 13
+    },
+    "scope": { "orgId": "org-1", "projectId": "infra" }
+  },
+  {
+    "id": "pr-1",
+    "entityType": "pr",
+    "displayName": "feat: Add Mobile OAuth Flow",
+    "sourceSystem": "github",
+    "canonicalPath": "auth-service/pull/45",
+    "properties": {
+      "status": "Open",
+      "author": "u-1",
+      "reviewers": ["u-2", "u-3"],
+      "checks": "Passed",
+      "additions": 342,
+      "deletions": 18,
+      "files": 8,
+      "description": "Implements OAuth 2.0 PKCE flow for mobile clients. Fixes AUTH-101.",
+      "labels": ["enhancement", "needs-review"]
+    },
+    "scope": { "orgId": "org-1", "projectId": "auth-service" }
+  },
+  {
+    "id": "pr-2",
+    "entityType": "pr",
+    "displayName": "fix: Resolve memory leak in connection pool",
+    "sourceSystem": "github",
+    "canonicalPath": "backend-core/pull/132",
+    "properties": {
+      "status": "Changes Requested",
+      "author": "u-2",
+      "reviewers": ["u-1"],
+      "checks": "Failed",
+      "additions": 45,
+      "deletions": 12,
+      "files": 3,
+      "description": "Fixes connection pool not releasing connections on timeout.",
+      "labels": ["bugfix", "performance"]
+    },
+    "scope": { "orgId": "org-1", "projectId": "backend" }
+  },
+  {
+    "id": "pr-3",
+    "entityType": "pr",
+    "displayName": "chore: Update Terraform modules to v5",
+    "sourceSystem": "github",
+    "canonicalPath": "infra-config/pull/89",
+    "properties": {
+      "status": "Merged",
+      "author": "u-3",
+      "reviewers": ["u-1"],
+      "checks": "Passed",
+      "additions": 120,
+      "deletions": 88,
+      "files": 15,
+      "mergedAt": "2025-12-09T14:30:00Z",
+      "labels": ["infrastructure"]
+    },
+    "scope": { "orgId": "org-1", "projectId": "infra" }
+  },
+  {
+    "id": "doc-1",
+    "entityType": "doc",
+    "displayName": "Authentication Architecture",
+    "sourceSystem": "confluence",
+    "canonicalPath": "docs/auth-architecture",
+    "properties": {
+      "author": "u-1",
+      "lastUpdated": "2025-12-05",
+      "status": "Published",
+      "views": 234,
+      "description": "Technical design document for the authentication and authorization system."
+    },
+    "scope": { "orgId": "org-1", "projectId": "auth-service" }
+  },
+  {
+    "id": "doc-2",
+    "entityType": "doc",
+    "displayName": "API Rate Limiting RFC",
+    "sourceSystem": "notion",
+    "canonicalPath": "rfcs/rate-limiting",
+    "properties": {
+      "author": "u-3",
+      "lastUpdated": "2025-12-08",
+      "status": "Draft",
+      "views": 45,
+      "description": "RFC for implementing rate limiting across all API endpoints."
+    },
+    "scope": { "orgId": "org-1", "projectId": "platform" }
+  },
+  {
+    "id": "alert-1",
+    "entityType": "alert",
+    "displayName": "High Error Rate: auth-service",
+    "sourceSystem": "datadog",
+    "canonicalPath": "alerts/auth-error-rate",
+    "properties": {
+      "severity": "P1",
+      "status": "Firing",
+      "triggered": "2025-12-10T09:15:00Z",
+      "service": "s-1",
+      "metric": "error_rate",
+      "threshold": "5%",
+      "current": "8.2%",
+      "description": "Error rate exceeded threshold. Likely related to mobile login issues."
+    },
+    "scope": { "orgId": "org-1", "projectId": "auth-service" }
+  },
+  {
+    "id": "alert-2",
+    "entityType": "alert",
+    "displayName": "Memory Usage Warning: backend-core",
+    "sourceSystem": "prometheus",
+    "canonicalPath": "alerts/backend-memory",
+    "properties": {
+      "severity": "P2",
+      "status": "Acknowledged",
+      "triggered": "2025-12-10T08:00:00Z",
+      "service": "s-2",
+      "metric": "memory_usage",
+      "threshold": "80%",
+      "current": "85%",
+      "description": "Memory usage elevated. Investigation ongoing."
+    },
+    "scope": { "orgId": "org-1", "projectId": "backend" }
+  },
+  {
+    "id": "s-1",
+    "entityType": "service",
+    "displayName": "Auth Service",
+    "sourceSystem": "github",
+    "canonicalPath": "workspace/auth-service",
+    "properties": {
+      "language": "Go",
+      "oncall": "u-1",
+      "status": "Degraded",
+      "uptime": "99.2%",
+      "deployedVersion": "v2.4.1",
+      "lastDeploy": "2025-12-09T10:00:00Z"
+    },
+    "scope": { "orgId": "org-1", "projectId": "auth-service" }
+  },
+  {
+    "id": "s-2",
+    "entityType": "service",
+    "displayName": "Backend Core",
+    "sourceSystem": "github",
+    "canonicalPath": "workspace/backend-core",
+    "properties": {
+      "language": "Python",
+      "oncall": "u-2",
+      "status": "Healthy",
+      "uptime": "99.9%",
+      "deployedVersion": "v3.1.0",
+      "lastDeploy": "2025-12-08T16:00:00Z"
+    },
+    "scope": { "orgId": "org-1", "projectId": "backend" }
+  },
+  {
+    "id": "s-3",
+    "entityType": "service",
+    "displayName": "Platform Gateway",
+    "sourceSystem": "github",
+    "canonicalPath": "workspace/platform-gateway",
+    "properties": {
+      "language": "Go",
+      "oncall": "u-3",
+      "status": "Healthy",
+      "uptime": "99.95%",
+      "deployedVersion": "v1.8.0",
+      "lastDeploy": "2025-12-07T11:00:00Z"
+    },
+    "scope": { "orgId": "org-1", "projectId": "platform" }
+  }
+]

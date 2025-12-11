@@ -1,0 +1,87 @@
+syntax = "proto3";
+
+package agent;
+
+option go_package = "github.com/antigravity/go-agent-service/internal/server";
+
+// AgentService handles agent interactions
+service AgentService {
+  // Chat sends a query and receives a complete response
+  rpc Chat(ChatRequest) returns (ChatResponse);
+  
+  // StreamChat sends a query and streams the response
+  rpc StreamChat(ChatRequest) returns (stream ChatChunk);
+  
+  // ExecuteAction executes a UCL action
+  rpc ExecuteAction(ActionRequest) returns (ActionResponse);
+}
+
+// ChatRequest represents an agent chat request
+message ChatRequest {
+  string query = 1;
+  string conversation_id = 2;
+  repeated string context_entities = 3;
+  optional string session_id = 4;
+}
+
+// ChatResponse represents a complete agent response
+message ChatResponse {
+  string response = 1;
+  repeated ReasoningStep reasoning = 2;
+  repeated Artifact artifacts = 3;
+  repeated string citations = 4;
+  repeated ProposedAction proposed_actions = 5;
+}
+
+// ChatChunk represents a streaming chunk
+message ChatChunk {
+  string content = 1;
+  bool done = 2;
+  optional ReasoningStep reasoning = 3;
+}
+
+// ReasoningStep represents a step in the agent's reasoning
+message ReasoningStep {
+  int32 step = 1;
+  string type = 2;  // retrieval, analysis, synthesis, action
+  string content = 3;
+  optional int64 duration_ms = 4;
+}
+
+// Artifact represents a generated artifact
+message Artifact {
+  string id = 1;
+  string type = 2;  // code, diff, markdown, yaml, json
+  string title = 3;
+  string content = 4;
+  optional string language = 5;
+}
+
+// ProposedAction represents an action the agent wants to take
+message ProposedAction {
+  string id = 1;
+  string type = 2;  // approve, execute, confirm
+  string title = 3;
+  string description = 4;
+}
+
+// ActionRequest represents a UCL action request
+message ActionRequest {
+  string action_type = 1;
+  string entity_id = 2;
+  string entity_type = 3;
+  string source = 4;
+  string payload = 5;  // JSON string
+  optional string conversation_id = 6;
+}
+
+// ActionResponse represents a UCL action response
+message ActionResponse {
+  bool success = 1;
+  string action_type = 2;
+  string entity_id = 3;
+  string message = 4;
+  optional string timestamp = 5;
+  optional string previous_state = 6;  // JSON string
+  optional string new_state = 7;       // JSON string
+}
