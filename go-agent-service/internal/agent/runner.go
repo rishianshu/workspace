@@ -4,18 +4,22 @@ package agent
 import (
 	"context"
 	"fmt"
+	"time"
 
+	agentctx "github.com/antigravity/go-agent-service/internal/context"
+	"github.com/antigravity/go-agent-service/internal/memory"
 	"go.uber.org/zap"
-	// "google.golang.org/adk" // ADK import when available
 )
 
 // Runner manages the ADK agent execution
 type Runner struct {
-	logger       *zap.SugaredLogger
-	apiKey       string
-	modelName    string
-	tools        []Tool
-	geminiClient *GeminiClient
+	logger         *zap.SugaredLogger
+	apiKey         string
+	modelName      string
+	tools          []Tool
+	geminiClient   *GeminiClient
+	memoryStore    memory.MemoryStore
+	contextBuilder *agentctx.Builder
 }
 
 // Tool represents a callable tool for the agent
@@ -91,6 +95,16 @@ func NewRunner(apiKey string, logger *zap.SugaredLogger) *Runner {
 	return r
 }
 
+// WithMemory sets the memory store for the runner
+func (r *Runner) WithMemory(store memory.MemoryStore, config *memory.ContextConfig) *Runner {
+	r.memoryStore = store
+	if config == nil {
+		config = memory.DefaultContextConfig()
+	}
+	r.contextBuilder = agentctx.NewBuilder(store, config)
+	return r
+}
+
 // RegisterTool adds a tool to the agent
 func (r *Runner) RegisterTool(tool Tool) {
 	r.tools = append(r.tools, tool)
@@ -115,8 +129,43 @@ func (r *Runner) Chat(ctx context.Context, req *ChatRequest) (*ChatResponse, err
 		DurationMs: 50,
 	})
 
-	// Step 2: Retrieve context (if entities provided)
-	if len(req.ContextEntities) > 0 {
+	// Determine session ID
+	sessionID := req.SessionID
+	if sessionID == "" {
+		sessionID = req.ConversationID
+	}
+
+	// Step 2: Memory-based context retrieval (if memory available)
+	if r.memoryStore != nil && sessionID != "" {
+		reasoning = append(reasoning, ReasoningStep{
+			Step:       2,
+			Type:       "retrieval",
+			Content:    "Searching memory for relevant context",
+			DurationMs: 100,
+		})
+
+		// Store the user turn
+		userTurn := &memory.Turn{
+			SessionID: sessionID,
+			Role:      "user",
+			Content:   req.Query,
+			CreatedAt: time.Now(),
+		}
+		if err := r.memoryStore.AddTurn(ctx, userTurn); err != nil {
+			r.logger.Warnw("Failed to store user turn", "error", err)
+		}
+
+		// Build context using memory
+		if r.contextBuilder != nil {
+			contextStr, err := r.contextBuilder.Build(ctx, sessionID, req.Query)
+			if err != nil {
+				r.logger.Warnw("Failed to build context", "error", err)
+			} else {
+				r.logger.Debugw("Built context", "length", len(contextStr))
+			}
+		}
+	} else if len(req.ContextEntities) > 0 {
+		// Fallback: Retrieve context from entities
 		reasoning = append(reasoning, ReasoningStep{
 			Step:       2,
 			Type:       "retrieval",
@@ -133,10 +182,29 @@ func (r *Runner) Chat(ctx context.Context, req *ChatRequest) (*ChatResponse, err
 		DurationMs: 200,
 	})
 
-	// TODO: Replace with actual ADK agent call when SDK is properly configured
-	// For now, return a structured response based on query matching
-	
+	// Generate response (pattern matching for now)
 	response := r.generateResponse(req.Query)
+
+	// Store agent turn in memory
+	if r.memoryStore != nil && sessionID != "" {
+		agentTurn := &memory.Turn{
+			SessionID: sessionID,
+			Role:      "assistant",
+			Content:   response.text,
+			CreatedAt: time.Now(),
+		}
+		if err := r.memoryStore.AddTurn(ctx, agentTurn); err != nil {
+			r.logger.Warnw("Failed to store agent turn", "error", err)
+		}
+
+		// Update session turn count
+		session, _ := r.memoryStore.GetSession(ctx, sessionID)
+		if session != nil {
+			session.TurnCount++
+			session.LastActivity = time.Now()
+			r.memoryStore.UpdateSession(ctx, session)
+		}
+	}
 
 	return &ChatResponse{
 		Response:  response.text,

@@ -34,6 +34,22 @@ func NewAgentServer(cfg *config.Config, logger *zap.SugaredLogger) *AgentServer 
 	memStore := memory.NewShortTermStore()
 	nucleusClient := nucleus.NewClient(cfg.NucleusURL, logger)
 
+	// Try to initialize episodic memory with pgvector (optional)
+	var episodicStore memory.MemoryStore
+	if cfg.PostgresURL != "" && cfg.GeminiAPIKey != "" {
+		embedder := memory.NewGeminiEmbedder(cfg.GeminiAPIKey)
+		store, err := memory.NewEpisodicStore(cfg.PostgresURL, embedder)
+		if err != nil {
+			logger.Warnw("Failed to initialize episodic memory, using short-term only", "error", err)
+		} else {
+			episodicStore = store
+			logger.Info("Episodic memory initialized with pgvector")
+			
+			// Wire memory to runner for context-aware chat
+			runner.WithMemory(store, nil)
+		}
+	}
+
 	// Register tools
 	uclTools := []tools.Tool{
 		tools.NewJiraTool(),
@@ -41,6 +57,8 @@ func NewAgentServer(cfg *config.Config, logger *zap.SugaredLogger) *AgentServer 
 		tools.NewPagerDutyTool(),
 		tools.NewSlackTool(),
 	}
+
+	_ = episodicStore // Will be used for explicit memory operations
 
 	return &AgentServer{
 		config:       cfg,
@@ -120,7 +138,9 @@ func (s *AgentServer) StreamChat(req *ChatRequest, stream AgentService_StreamCha
 		ContextEntities: req.ContextEntities,
 	}
 
-	agentResp, err := s.runner.Chat(stream.Context(), agentReq)
+	// Use context.Background() as stream context doesn't implement full Context interface
+	ctx := context.Background()
+	agentResp, err := s.runner.Chat(ctx, agentReq)
 	if err != nil {
 		return err
 	}

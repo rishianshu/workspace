@@ -19,6 +19,7 @@ const (
 	ProviderOpenAI   Provider = "openai"
 	ProviderGroq     Provider = "groq"     // Free tier available
 	ProviderTogether Provider = "together" // Free tier available
+	ProviderLocal    Provider = "local"    // Stub for testing
 )
 
 // ModelConfig represents a configured model
@@ -33,6 +34,9 @@ type ModelConfig struct {
 // AvailableModels returns all configured models
 func AvailableModels() []ModelConfig {
 	return []ModelConfig{
+		// Local stub (for testing without API calls)
+		{Provider: ProviderLocal, Model: "stub", DisplayName: "Local Stub (Testing)", Tier: "free", MaxTokens: 4096},
+		
 		// Gemini models
 		{Provider: ProviderGemini, Model: "gemma-3-27b-it", DisplayName: "Gemma 3 27B", Tier: "free", MaxTokens: 8192},
 		{Provider: ProviderGemini, Model: "gemma-3-12b", DisplayName: "Gemma 3 12B", Tier: "free", MaxTokens: 8192},
@@ -120,6 +124,10 @@ func (c *MultiProviderClient) GetClient(provider Provider, model string) (LLMCli
 			model:  model,
 			client: c.httpClient,
 		}, nil
+		
+	case ProviderLocal:
+		// Local stub - no API key needed
+		return &localClient{}, nil
 		
 	default:
 		return nil, fmt.Errorf("unknown provider: %s", provider)
@@ -395,3 +403,95 @@ func (c *groqClient) doRequest(ctx context.Context, messages []map[string]string
 	
 	return result.Choices[0].Message.Content, nil
 }
+
+// ========== Local Stub Client (Testing) ==========
+
+type localClient struct{}
+
+func (c *localClient) Provider() Provider { return ProviderLocal }
+func (c *localClient) Model() string      { return "stub" }
+
+func (c *localClient) Generate(ctx context.Context, prompt string, systemPrompt string) (string, error) {
+	return c.matchKeywords(prompt), nil
+}
+
+func (c *localClient) Chat(ctx context.Context, messages []ChatMessage, systemPrompt string) (string, error) {
+	// Take the last user message
+	var lastMsg string
+	for i := len(messages) - 1; i >= 0; i-- {
+		if messages[i].Role == "user" {
+			lastMsg = messages[i].Content
+			break
+		}
+	}
+	return c.matchKeywords(lastMsg), nil
+}
+
+func (c *localClient) matchKeywords(prompt string) string {
+	lower := toLowerLocal(prompt)
+	
+	// Bug/Error keywords
+	if containsLocal(lower, "bug") || containsLocal(lower, "error") || containsLocal(lower, "fix") || containsLocal(lower, "login") {
+		return "[LOCAL STUB] 🐛 Detected BUG/FIX request. I found an issue in the authentication flow. The session token validation is failing due to an incorrect expiry check. Here's my proposed fix:\n\n```typescript\n// Fix: Correct token expiry validation\nfunction validateToken(token: string): boolean {\n  const decoded = jwt.decode(token);\n  const now = Math.floor(Date.now() / 1000);\n  return decoded.exp > now; // Fixed: was using < instead of >\n}\n```\n\n**Citations:** [MOBILE-1234], [auth.ts:45]"
+	}
+	
+	// PR/Review keywords
+	if containsLocal(lower, "pr") || containsLocal(lower, "review") || containsLocal(lower, "pull request") {
+		return "[LOCAL STUB] 📝 Detected PR REVIEW request. I've reviewed the pull request and found 2 potential issues:\n\n1. **Missing null check** on line 23 - Add `if (!user) return null;`\n2. **Potential performance issue** with nested loops - Consider using `Map` instead\n\n**Overall:** Approved with minor changes requested.\n\n**Citations:** [PR-4423]"
+	}
+	
+	// Documentation keywords
+	if containsLocal(lower, "doc") || containsLocal(lower, "api") || containsLocal(lower, "spec") {
+		return "[LOCAL STUB] 📚 Detected DOCUMENTATION request. Here's the generated API documentation:\n\n```yaml\nopenapi: 3.0.0\ninfo:\n  title: Auth API\n  version: 1.0.0\npaths:\n  /login:\n    post:\n      summary: User login\n```\n\n**Citations:** [auth.ts]"
+	}
+	
+	// Workflow keywords
+	if containsLocal(lower, "workflow") || containsLocal(lower, "automate") || containsLocal(lower, "schedule") {
+		return "[LOCAL STUB] ⚙️ Detected WORKFLOW request. I've synthesized a workflow:\n\n```yaml\nname: Daily Bug Scanner\ntrigger:\n  schedule: \"0 9 * * *\"  # Every day at 9 AM\nsteps:\n  - id: scan\n    action: ucl.jira.search\n    params:\n      query: \"priority = Critical\"\n  - id: notify\n    action: ucl.slack.post\n    params:\n      channel: \"#dev-alerts\"\n```"
+	}
+	
+	// Ticket/Jira keywords
+	if containsLocal(lower, "ticket") || containsLocal(lower, "jira") || containsLocal(lower, "assignee") {
+		return "[LOCAL STUB] 🎫 Detected TICKET request. Found 3 critical tickets:\n\n1. **MOBILE-1234** - Login button unresponsive (Critical)\n2. **MOBILE-1235** - Session timeout issues (High)\n3. **MOBILE-1236** - User avatar not loading (Medium)\n\nWould you like me to assign or update any of these?"
+	}
+	
+	// Alert/PagerDuty keywords
+	if containsLocal(lower, "alert") || containsLocal(lower, "pagerduty") || containsLocal(lower, "incident") {
+		return "[LOCAL STUB] 🚨 Detected ALERT request. Current active incidents:\n\n1. **INC-001** - API latency spike (Acknowledged)\n2. **INC-002** - Database connection pool exhausted (Triggered)\n\nWould you like me to acknowledge or resolve any alerts?"
+	}
+	
+	// GitHub keywords  
+	if containsLocal(lower, "github") || containsLocal(lower, "merge") || containsLocal(lower, "branch") {
+		return "[LOCAL STUB] 🔱 Detected GITHUB request. Repository status:\n\n- **main**: 234 commits, last updated 2h ago\n- **feature/auth-fix**: 3 commits ahead, ready for merge\n- **Open PRs**: 5 pending review\n\nWould you like me to merge or create a PR?"
+	}
+	
+	// Hello/greeting
+	if containsLocal(lower, "hello") || containsLocal(lower, "hi") || containsLocal(lower, "hey") {
+		return "[LOCAL STUB] 👋 Hello! I'm the Antigravity Agent running in **local stub mode**. This mode provides deterministic responses for testing.\n\nTry asking about:\n- 🐛 Bug fixes\n- 📝 PR reviews\n- 📚 Documentation\n- ⚙️ Workflows\n- 🎫 Tickets\n- 🚨 Alerts"
+	}
+	
+	// Default response
+	return fmt.Sprintf("[LOCAL STUB] 🤖 Received query: \"%s\"\n\nI'm running in local stub mode for deterministic testing. Keywords I understand:\n- bug, error, fix, login\n- pr, review, pull request\n- doc, api, spec\n- workflow, automate, schedule\n- ticket, jira\n- alert, pagerduty\n- github, merge\n- hello, hi", prompt)
+}
+
+func toLowerLocal(s string) string {
+	result := make([]byte, len(s))
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c >= 'A' && c <= 'Z' {
+			c += 'a' - 'A'
+		}
+		result[i] = c
+	}
+	return string(result)
+}
+
+func containsLocal(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}
+
