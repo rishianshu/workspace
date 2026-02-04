@@ -32,7 +32,7 @@ pub struct StreamChunk {
     pub artifact: Option<ArtifactChunk>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct HistoryMessage {
     pub role: String,
     pub content: String,
