@@ -102,10 +102,6 @@ impl AgentServiceClient {
         }
     }
 
-    pub fn with_timeout(mut self, timeout: Duration) -> Self {
-        self.timeout = timeout;
-        self
-    }
 
     /// Send a chat request to the Go Agent Service
     pub async fn chat(&self, request: ChatRequest) -> Result<ChatResponse, ClientError> {
@@ -169,7 +165,6 @@ pub enum ClientError {
     ConnectionError(String),
     ParseError(String),
     ServiceError(String),
-    Timeout,
 }
 
 impl std::fmt::Display for ClientError {
@@ -178,7 +173,6 @@ impl std::fmt::Display for ClientError {
             ClientError::ConnectionError(msg) => write!(f, "Connection error: {}", msg),
             ClientError::ParseError(msg) => write!(f, "Parse error: {}", msg),
             ClientError::ServiceError(msg) => write!(f, "Service error: {}", msg),
-            ClientError::Timeout => write!(f, "Request timed out"),
         }
     }
 }

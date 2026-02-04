@@ -6,7 +6,6 @@ mod routes;
 mod proxy;
 mod middleware;
 mod config;
-mod error;
 
 use axum::{
     routing::{get, post},

@@ -4,7 +4,6 @@ use axum::{
     extract::ws::{Message, WebSocket, WebSocketUpgrade},
     response::Response,
 };
-use futures::{sink::SinkExt, stream::StreamExt};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize)]
