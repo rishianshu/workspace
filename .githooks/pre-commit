@@ -1,0 +1,66 @@
+#!/bin/sh
+set -e
+
+ACTIVE_FILE=".agent/ACTIVE_INTENT"
+INTENT_SLUG=""
+if [ -f "$ACTIVE_FILE" ]; then
+  INTENT_SLUG=$(cat "$ACTIVE_FILE" | tr -d '[:space:]')
+fi
+
+if [ -z "$INTENT_SLUG" ]; then
+  echo "[workspace] ACTIVE_INTENT is not set."
+  echo "Run: scripts/set-active-intent.sh <intent-slug>"
+  exit 1
+fi
+
+INTENT_DIR=".agent/intents/$INTENT_SLUG"
+if [ ! -d "$INTENT_DIR" ]; then
+  echo "[workspace] Intent not found: $INTENT_DIR"
+  exit 1
+fi
+
+for f in INTENT.md SPEC.md ACCEPTANCE.md; do
+  if [ ! -f "$INTENT_DIR/$f" ]; then
+    echo "[workspace] Missing requirement doc: $INTENT_DIR/$f"
+    exit 1
+  fi
+done
+
+LOG_FILE="$INTENT_DIR/LOG.md"
+if [ ! -f "$LOG_FILE" ]; then
+  echo "[workspace] Missing LOG.md for Codex review: $LOG_FILE"
+  exit 1
+fi
+
+if ! grep -qi "codex review" "$LOG_FILE"; then
+  echo "[workspace] LOG.md missing Codex review entry."
+  echo "Add an entry like: 'Codex Review: <date> <summary>'"
+  exit 1
+fi
+
+UNIT_STAMP=".agent/test-stamps/unit.txt"
+if [ ! -f "$UNIT_STAMP" ]; then
+  echo "[workspace] Unit test stamp missing."
+  echo "Run: scripts/record-unit-test.sh \"<unit test command>\""
+  exit 1
+fi
+
+python3 - <<'PY'
+import os, time, sys
+stamp = os.environ.get("UNIT_STAMP_PATH")
+if not stamp:
+    stamp = ".agent/test-stamps/unit.txt"
+try:
+    mtime = os.path.getmtime(stamp)
+except OSError:
+    print("[workspace] Unit test stamp missing.")
+    sys.exit(1)
+# Require unit tests within last 6 hours
+age = time.time() - mtime
+if age > 6 * 3600:
+    print("[workspace] Unit test stamp is older than 6 hours.")
+    print("Run: scripts/record-unit-test.sh \"<unit test command>\"")
+    sys.exit(1)
+PY
+
+exit 0

@@ -10,12 +10,20 @@ A full-stack AI agent platform featuring a Go-based agent service, Rust edge gat
 │   (Next.js)     │     │    (Axum)       │     │ (gRPC/Temporal) │
 └─────────────────┘     └─────────────────┘     └─────────────────┘
                                                          │
-                              ┌──────────────────────────┴──────────────────────────┐
+                              ┌──────────────────────────┼──────────────────────────┐
                               ▼                          ▼                          ▼
                        ┌───────────┐              ┌───────────┐              ┌───────────┐
-                       │ PostgreSQL│              │  Temporal │              │  Nucleus  │
-                       │ (pgvector)│              │  Server   │              │   Stub    │
-                       └───────────┘              └───────────┘              └───────────┘
+                       │ PostgreSQL│              │  Temporal │              │ mcp-server│
+                       │ (pgvector)│              │  Server   │              └─────┬─────┘
+                       └───────────┘              └───────────┘                    ▼
+                                                                                 ┌───────────┐
+                                                                                 │ keystore  │
+                                                                                 └─────┬─────┘
+                                                                                       ▼
+                                                                                 ┌───────────┐
+                                                                                 │  Nucleus  │
+                                                                                 │ (external)│
+                                                                                 └───────────┘
 ```
 
 ## 📦 Components
@@ -47,13 +55,14 @@ Modern web interface for interacting with the AI agent.
   - Real-time streaming responses
   - Apollo Client for GraphQL
 
-### [nucleus-stub](./nucleus-stub)
-Stub implementation of the Nucleus data layer.
+### Nucleus (external)
+Source of truth for projects, endpoints, and brain/graph APIs (GraphQL + UCL gateway).
 
-- **Stack**: Node.js, Apollo Server, gRPC
-- **Features**:
-  - GraphQL API
-  - gRPC service endpoints
+### [mcp-server](./mcp-server)
+Standalone MCP service that wraps UCL + Nucleus brain APIs for tool discovery/execution.
+
+### [keystore](./keystore)
+Credential store service for user-scoped tokens (separate from endpoint config).
 
 ## 🚀 Quick Start
 
@@ -67,6 +76,8 @@ Stub implementation of the Nucleus data layer.
 Create a `.env` file in the root directory:
 ```bash
 GEMINI_API_KEY=your_gemini_api_key
+NUCLEUS_API_URL=http://localhost:4000/graphql
+NUCLEUS_UCL_URL=localhost:50051
 ```
 
 ### Running with Docker Compose
@@ -84,12 +95,17 @@ docker-compose logs -f
 | workspace-web    | 3000  | Web frontend               |
 | rust-gateway     | 8080  | Edge gateway (HTTP/WS)     |
 | go-agent-service | 9000  | Agent gRPC service         |
-| nucleus-stub     | 4000  | Nucleus data layer         |
+| mcp-server       | 9100  | MCP tools API              |
+| keystore         | 9200  | Credential store API       |
+| nucleus          | n/a   | External Nucleus GraphQL/UCL|
 | temporal-ui      | 8233  | Temporal Web UI            |
 | temporal         | 7233  | Temporal gRPC              |
 | postgres         | 5432  | PostgreSQL with pgvector   |
 
 ## 📚 Relevant Documentation
+
+### Workspace Docs
+- Ontology: [docs/ontology/INDEX.md](./docs/ontology/INDEX.md)
 
 ### Core Technologies
 - [Google ADK for Go](https://github.com/google/genai-go) - AI agent development kit
@@ -107,6 +123,33 @@ docker-compose logs -f
 - [Monaco Editor](https://microsoft.github.io/monaco-editor/) - Code editor
 
 ## 🛠️ Development
+
+### Commit Workflow (Mandatory)
+This repo uses a pre-commit hook to enforce requirements, unit tests, and Codex review logging.
+
+Setup:
+```bash
+git config core.hooksPath .githooks
+```
+
+Usage:
+```bash
+scripts/set-active-intent.sh <intent-slug>
+scripts/run-unit-tests.sh
+scripts/run-codex-review.sh <intent-slug> "summary"
+```
+
+Default test commands can be set in:
+```
+.agent/test-commands/unit.sh
+.agent/test-commands/integration.sh
+```
+
+Story completion (integration tests):
+```bash
+scripts/run-integration-tests.sh
+scripts/verify-intent-complete.sh
+```
 
 ### Individual Service Development
 
@@ -129,12 +172,8 @@ npm install
 npm run dev
 ```
 
-**Nucleus Stub:**
-```bash
-cd nucleus-stub
-npm install
-npm start
-```
+**Nucleus (external):**
+Point `NUCLEUS_API_URL` / `NUCLEUS_UCL_URL` at your Nucleus deployment.
 
 ## 📄 License
 
