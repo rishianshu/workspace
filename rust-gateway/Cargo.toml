@@ -38,6 +38,9 @@ anyhow = "1.0"
 # HTTP client for Go service
 reqwest = { version = "0.12", features = ["json"] }
 
+# Note: GraphQL (async-graphql) removed due to version conflicts
+# Using REST API for tools endpoints instead
+
 # WebSocket
 tokio-tungstenite = "0.21"
 

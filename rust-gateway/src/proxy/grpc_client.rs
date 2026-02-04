@@ -16,6 +16,33 @@ pub struct ChatRequest {
     #[serde(default)]
     pub context_entities: Vec<String>,
     pub session_id: Option<String>,
+    #[serde(rename = "userId")]
+    pub user_id: Option<String>,
+    #[serde(rename = "projectId")]
+    pub project_id: Option<String>,
+    // LLM provider selection
+    pub provider: Option<String>,
+    pub model: Option<String>,
+    // Conversation history for multi-turn context
+    #[serde(default)]
+    pub history: Vec<HistoryMessage>,
+    // Attached files with content
+    #[serde(default, rename = "attachedFiles")]
+    pub attached_files: Vec<AttachedFile>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HistoryMessage {
+    pub role: String,
+    pub content: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AttachedFile {
+    pub name: String,
+    #[serde(rename = "type")]
+    pub file_type: String,
+    pub content: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

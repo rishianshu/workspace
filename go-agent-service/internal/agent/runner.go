@@ -4,6 +4,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	agentctx "github.com/antigravity/go-agent-service/internal/context"
@@ -46,10 +47,27 @@ type ReasoningStep struct {
 
 // ChatRequest represents an incoming chat request
 type ChatRequest struct {
-	Query           string   `json:"query"`
-	ConversationID  string   `json:"conversation_id"`
-	ContextEntities []string `json:"context_entities,omitempty"`
-	SessionID       string   `json:"session_id,omitempty"`
+	Query           string         `json:"query"`
+	ConversationID  string         `json:"conversation_id"`
+	ContextEntities []string       `json:"context_entities,omitempty"`
+	SessionID       string         `json:"session_id,omitempty"`
+	Provider        string         `json:"provider,omitempty"`
+	Model           string         `json:"model,omitempty"`
+	History         []HistoryMsg   `json:"history,omitempty"`
+	AttachedFiles   []AttachedFile `json:"attachedFiles,omitempty"`
+}
+
+// HistoryMsg represents a message in conversation history
+type HistoryMsg struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
+}
+
+// AttachedFile represents a file attached by the user
+type AttachedFile struct {
+	Name     string `json:"name"`
+	FileType string `json:"type"`
+	Content  string `json:"content"`
 }
 
 // ChatResponse represents the agent's response
@@ -182,8 +200,31 @@ func (r *Runner) Chat(ctx context.Context, req *ChatRequest) (*ChatResponse, err
 		DurationMs: 200,
 	})
 
+	// Build enriched query with attached files
+	enrichedQuery := req.Query
+	if len(req.AttachedFiles) > 0 {
+		var fileParts []string
+		for _, f := range req.AttachedFiles {
+			// Truncate large files to first 3000 chars
+			content := f.Content
+			if len(content) > 3000 {
+				content = content[:3000] + "\n... [truncated]"
+			}
+			fileParts = append(fileParts, fmt.Sprintf("=== File: %s (%s) ===\n%s", f.Name, f.FileType, content))
+		}
+		fileContext := strings.Join(fileParts, "\n\n")
+		enrichedQuery = fmt.Sprintf("The user has attached the following file(s) for analysis:\n\n%s\n\n---\nUser query: %s", fileContext, req.Query)
+		
+		reasoning = append(reasoning, ReasoningStep{
+			Step:       len(reasoning) + 1,
+			Type:       "retrieval",
+			Content:    fmt.Sprintf("Injecting %d attached file(s) into context", len(req.AttachedFiles)),
+			DurationMs: 50,
+		})
+	}
+
 	// Generate response (pattern matching for now)
-	response := r.generateResponse(req.Query)
+	response := r.generateResponse(enrichedQuery)
 
 	// Store agent turn in memory
 	if r.memoryStore != nil && sessionID != "" {

@@ -12,6 +12,33 @@ pub struct ChatRequest {
     #[serde(default)]
     pub context_entities: Vec<String>,
     pub session_id: Option<String>,
+    #[serde(rename = "userId")]
+    pub user_id: Option<String>,
+    #[serde(rename = "projectId")]
+    pub project_id: Option<String>,
+    // LLM provider selection
+    pub provider: Option<String>,
+    pub model: Option<String>,
+    // Conversation history for multi-turn context
+    #[serde(default)]
+    pub history: Vec<HistoryMessage>,
+    // Attached files with content
+    #[serde(default, rename = "attachedFiles")]
+    pub attached_files: Vec<AttachedFile>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct HistoryMessage {
+    pub role: String,
+    pub content: String,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct AttachedFile {
+    pub name: String,
+    #[serde(rename = "type")]
+    pub file_type: String,
+    pub content: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -51,14 +78,27 @@ pub async fn handle_chat(
 ) -> Json<ChatResponse> {
     tracing::info!("Chat request: {:?}", request.query);
     
-    // Try to forward to Go Agent Service
-    let client = AgentServiceClient::new("http://localhost:9000");
+    // Try to forward to Go Agent Service (HTTP on port 9001)
+    let client = AgentServiceClient::new("http://localhost:9001");
     
     let client_request = ClientChatRequest {
         query: request.query.clone(),
         conversation_id: request.conversation_id.clone(),
         context_entities: request.context_entities.clone(),
         session_id: request.session_id.clone(),
+        user_id: request.user_id.clone(),
+        project_id: request.project_id.clone(),
+        provider: request.provider.clone(),
+        model: request.model.clone(),
+        history: request.history.iter().map(|h| crate::proxy::grpc_client::HistoryMessage {
+            role: h.role.clone(),
+            content: h.content.clone(),
+        }).collect(),
+        attached_files: request.attached_files.iter().map(|f| crate::proxy::grpc_client::AttachedFile {
+            name: f.name.clone(),
+            file_type: f.file_type.clone(),
+            content: f.content.clone(),
+        }).collect(),
     };
 
     match client.chat(client_request).await {

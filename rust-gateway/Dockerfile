@@ -1,12 +1,13 @@
-FROM rust:1.75-slim-bookworm as builder
+FROM rust:1.84-slim-bookworm as builder
 
 WORKDIR /app
 
 # Install dependencies
-RUN apt-get update && apt-get install -y protobuf-compiler && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y protobuf-compiler pkg-config libssl-dev && rm -rf /var/lib/apt/lists/*
 
 # Copy source
-COPY . .
+COPY rust-gateway/ ./
+COPY go-agent-service/api/proto /go-agent-service/api/proto
 
 # Build release
 RUN cargo build --release
@@ -15,6 +16,9 @@ RUN cargo build --release
 FROM debian:bookworm-slim
 
 WORKDIR /app
+
+# Runtime deps for TLS
+RUN apt-get update && apt-get install -y libssl3 ca-certificates && rm -rf /var/lib/apt/lists/*
 
 # Copy binary
 COPY --from=builder /app/target/release/gateway /app/gateway

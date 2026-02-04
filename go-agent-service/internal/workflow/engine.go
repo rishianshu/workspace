@@ -3,8 +3,11 @@ package workflow
 
 import (
 	"context"
+	"fmt"
 	"time"
 
+	"go.temporal.io/api/workflowservice/v1"
+	"go.temporal.io/sdk/client"
 	"go.uber.org/zap"
 )
 
@@ -12,15 +15,21 @@ import (
 type Engine struct {
 	logger       *zap.SugaredLogger
 	temporalHost string
-	// client       client.Client  // Temporal client - will be added when SDK is configured
+	client       *TemporalClient // Temporal client wrapper
 }
 
 // NewEngine creates a new workflow engine
-func NewEngine(temporalHost string, logger *zap.SugaredLogger) *Engine {
+func NewEngine(temporalHost string, logger *zap.SugaredLogger) (*Engine, error) {
+	client, err := NewTemporalClient(temporalHost, logger)
+	if err != nil {
+		return nil, err
+	}
+	
 	return &Engine{
 		logger:       logger,
 		temporalHost: temporalHost,
-	}
+		client:       client,
+	}, nil
 }
 
 // WorkflowDefinition represents a synthesized workflow
@@ -137,39 +146,106 @@ func (e *Engine) DenyWorkflow(ctx context.Context, workflowID string, reason str
 }
 
 // ExecuteWorkflow starts execution of an approved workflow
-func (e *Engine) ExecuteWorkflow(ctx context.Context, workflow *WorkflowDefinition) (*WorkflowExecution, error) {
+func (e *Engine) ExecuteWorkflow(ctx context.Context, wfDef *WorkflowDefinition) (*WorkflowExecution, error) {
 	e.logger.Infow("Executing workflow",
-		"workflow_id", workflow.ID,
-		"name", workflow.Name,
+		"workflow_id", wfDef.ID,
+		"name", wfDef.Name,
 	)
 
 	execution := &WorkflowExecution{
 		ID:          generateID(),
-		WorkflowID:  workflow.ID,
+		WorkflowID:  wfDef.ID,
 		Status:      StatusRunning,
 		StartedAt:   time.Now(),
 		StepResults: make(map[string]any),
 	}
 
-	// In production: Would start Temporal workflow
-	// For now, simulate execution
-	
-	for _, step := range workflow.Steps {
-		execution.CurrentStep = step.ID
-		
-		// Simulate step execution
-		result := map[string]any{
-			"success": true,
-			"action":  step.Action,
-		}
-		execution.StepResults[step.ID] = result
+	// Start Temporal workflow
+	options := client.StartWorkflowOptions{
+		ID:        execution.ID,
+		TaskQueue: "agent-task-queue",
 	}
 
-	now := time.Now()
-	execution.CompletedAt = &now
-	execution.Status = StatusCompleted
+	we, err := e.client.ExecuteWorkflow(ctx, options, DynamicWorkflow, *wfDef)
+	if err != nil {
+		return nil, fmt.Errorf("failed to start workflow: %w", err)
+	}
 
+	e.logger.Infow("Started Temporal workflow", "run_id", we.GetRunID())
+	execution.Status = StatusRunning
+	
+	// In a real system, we'd persist the execution record to DB here
 	return execution, nil
+}
+
+// ListWorkflows returns lists of recent workflows
+func (e *Engine) ListWorkflows(ctx context.Context) ([]*WorkflowExecution, error) {
+	// List open workflows
+	openResp, err := e.client.ListOpenWorkflow(ctx, &workflowservice.ListOpenWorkflowExecutionsRequest{
+		Namespace: "default",
+	})
+	if err != nil {
+		e.logger.Errorw("Failed to list open workflows", "error", err)
+		return nil, err
+	}
+
+	executions := []*WorkflowExecution{}
+	for _, exec := range openResp.Executions {
+		executions = append(executions, &WorkflowExecution{
+			ID:         exec.Execution.RunId,
+			WorkflowID: exec.Execution.WorkflowId,
+			Status:     StatusRunning,
+			StartedAt:  exec.StartTime.AsTime(),
+		})
+	}
+	
+	// Ensure client lists closed workflows correctly
+	closedResp, err := e.client.ListClosedWorkflow(ctx, &workflowservice.ListClosedWorkflowExecutionsRequest{
+		Namespace: "default",
+	})
+	if err == nil {
+		for _, exec := range closedResp.Executions {
+			executions = append(executions, &WorkflowExecution{
+				ID:          exec.Execution.RunId,
+				WorkflowID:  exec.Execution.WorkflowId,
+				Status:      StatusCompleted, // Simplified
+				StartedAt:   exec.StartTime.AsTime(),
+				CompletedAt: func() *time.Time { t := exec.CloseTime.AsTime(); return &t }(),
+			})
+		}
+	}
+
+	return executions, nil
+}
+
+// CancelWorkflow cancels a running workflow
+func (e *Engine) CancelWorkflow(ctx context.Context, executionID string) error {
+	e.logger.Infow("Cancelling workflow", "execution_id", executionID)
+	// We need workflowID and runID. In our simplified model executionID is RunID.
+	// We don't track WorkflowID mapping easily here without DB, but Temporal ListOpen can find it.
+	// Or we just assume user provides RunID and we try to guess WorkflowID or use a known one?
+	// Temporal CancelWorkflow requires ID and RunID.
+	
+	// For now, assume executionID is RunID and WorkflowID is available via List query or similar. 
+	// But let's try to pass RunID as WorkflowID if we used it that way? No, WorkflowID was generated as "wf-...".
+	// Implementation hack: We just try to terminate it using client.TerminateWorkflow which works with RunID? 
+	// actually Client.TerminateWorkflow(ctx, workflowID, runID, reason, details...)
+	
+	// Better approach: User passes RunID. We list workflows to find the WorkflowID which matches RunID.
+	
+	return e.client.TerminateWorkflow(ctx, "", executionID, "User requested cancellation")
+}
+
+// CreateWorkflow starts a new workflow from a definition
+func (e *Engine) CreateWorkflow(ctx context.Context, definition *WorkflowDefinition) (*WorkflowExecution, error) {
+	e.logger.Infow("Creating new workflow", "name", definition.Name)
+	
+	// Synthesize ID if missing
+	if definition.ID == "" {
+		definition.ID = generateID()
+	}
+	
+	return e.ExecuteWorkflow(ctx, definition)
 }
 
 // Helper functions

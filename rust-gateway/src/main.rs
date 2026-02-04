@@ -49,6 +49,19 @@ async fn main() {
         // Actions API
         .route("/api/actions", post(routes::actions::handle_action))
         .route("/api/actions", get(routes::actions::list_actions))
+        // Tools API (MCP/UCL, Nucleus, Store)
+        .route("/api/tools", get(routes::tools::list_tools))
+        .route("/api/tools/execute", post(routes::tools::execute_tool))
+        .route("/api/projects", get(routes::tools::list_projects))
+        .route("/api/projects/:id", get(routes::tools::get_project))
+        .route("/api/endpoints", get(routes::tools::list_endpoints))
+        .route("/api/brain/search", post(routes::tools::brain_search))
+        .route("/api/apps/instances", post(routes::tools::upsert_app_instance))
+        .route("/api/apps/instances", get(routes::tools::get_app_instance))
+        .route("/api/apps/users", post(routes::tools::upsert_user_app))
+        .route("/api/apps/users", get(routes::tools::list_user_apps))
+        .route("/api/apps/projects", post(routes::tools::upsert_project_app))
+        .route("/api/apps/projects", get(routes::tools::list_project_apps))
         // Layers
         .layer(cors)
         .layer(TraceLayer::new_for_http());

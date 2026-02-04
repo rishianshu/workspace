@@ -78,6 +78,45 @@ func (b *Builder) Build(ctx context.Context, sessionID, query string) (string, e
 	return strings.Join(sections, "\n\n"), nil
 }
 
+// BuildWithContext creates a prompt including Knowledge Graph context from Orchestrator
+func (b *Builder) BuildWithContext(ctx context.Context, sessionID, query string, kgContext *Context) (string, error) {
+	var sections []string
+
+	// 1. System Prompt
+	if b.config.SystemPrompt != "" {
+		sections = append(sections, b.config.SystemPrompt)
+	}
+
+	// 2. Knowledge Graph Context (from Orchestrator)
+	if kgContext != nil {
+		kgFormatted := kgContext.FormatForLLM()
+		if kgFormatted != "" {
+			sections = append(sections, kgFormatted)
+		}
+	}
+
+	// 3. Session Summary
+	if b.memoryStore != nil {
+		session, err := b.memoryStore.GetSession(ctx, sessionID)
+		if err == nil && session != nil && session.Summary != "" {
+			sections = append(sections, fmt.Sprintf("## Conversation Summary\n%s", session.Summary))
+		}
+	}
+
+	// 4. Recent Turns
+	if b.memoryStore != nil {
+		recentTurns, err := b.memoryStore.GetTurns(ctx, sessionID, b.config.MaxRecentTurns)
+		if err == nil && len(recentTurns) > 0 {
+			sections = append(sections, b.formatRecentTurns(recentTurns))
+		}
+	}
+
+	// 5. Current Query
+	sections = append(sections, fmt.Sprintf("## Current Request\n%s", query))
+
+	return strings.Join(sections, "\n\n"), nil
+}
+
 // BuildWithHistory includes specific turn history
 func (b *Builder) BuildWithHistory(ctx context.Context, sessionID, query string, turns []*memory.Turn) (string, error) {
 	var sections []string

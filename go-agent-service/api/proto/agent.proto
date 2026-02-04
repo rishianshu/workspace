@@ -22,6 +22,19 @@ message ChatRequest {
   string conversation_id = 2;
   repeated string context_entities = 3;
   optional string session_id = 4;
+  
+  // LLM provider selection
+  optional string provider = 5;  // gemini, openai, groq
+  optional string model = 6;     // gemini-2.0-flash, gpt-4o-mini, etc.
+  
+  // Conversation history for multi-turn context
+  repeated HistoryMessage history = 7;
+}
+
+// HistoryMessage represents a message in conversation history
+message HistoryMessage {
+  string role = 1;     // user, assistant
+  string content = 2;
 }
 
 // ChatResponse represents a complete agent response
