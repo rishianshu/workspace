@@ -2,6 +2,7 @@
 
 use axum::Json;
 use serde::{Deserialize, Serialize};
+use std::env;
 
 use crate::proxy::grpc_client::{AgentServiceClient, ChatRequest as ClientChatRequest};
 
@@ -78,8 +79,9 @@ pub async fn handle_chat(
 ) -> Json<ChatResponse> {
     tracing::info!("Chat request: {:?}", request.query);
     
-    // Try to forward to Go Agent Service (HTTP on port 9001)
-    let client = AgentServiceClient::new("http://localhost:9001");
+    // Try to forward to Go Agent Service (HTTP)
+    let agent_url = env::var("AGENT_SERVICE_URL").unwrap_or_else(|_| "http://localhost:9001".to_string());
+    let client = AgentServiceClient::new(&agent_url);
     
     let client_request = ClientChatRequest {
         query: request.query.clone(),

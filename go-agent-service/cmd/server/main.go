@@ -58,6 +58,7 @@ func main() {
 	httpMux.HandleFunc("/workflows/cancel", httpHandler.HandleCancelWorkflow)
 	httpMux.HandleFunc("/tools", httpHandler.HandleListTools)
 	httpMux.HandleFunc("/tools/execute", httpHandler.HandleExecuteTool)
+	httpMux.HandleFunc("/action", httpHandler.HandleExecuteAction)
 	httpMux.HandleFunc("/brain/search", httpHandler.HandleBrainSearch)
 	httpMux.HandleFunc("/projects", httpHandler.HandleListProjects)
 	httpMux.HandleFunc("/apps/instances", httpHandler.HandleAppInstances)
