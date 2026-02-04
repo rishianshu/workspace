@@ -1,0 +1,22 @@
+FROM golang:1.24-alpine as builder
+
+WORKDIR /app
+
+RUN apk add --no-cache protobuf-dev make
+
+COPY go.mod go.sum* ./
+RUN go mod download || true
+
+COPY . .
+
+RUN CGO_ENABLED=0 GOOS=linux go build -o /mcp-server ./cmd/mcp-server
+
+FROM alpine:3.19
+
+WORKDIR /app
+
+COPY --from=builder /mcp-server /app/mcp-server
+
+EXPOSE 9100
+
+CMD ["/app/mcp-server"]

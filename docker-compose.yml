@@ -37,7 +37,7 @@ services:
       postgres:
         condition: service_healthy
     ports:
-      - "7233:7233"
+      - "7234:7233"
 
   # Temporal Web UI
   temporal-ui:
@@ -58,7 +58,10 @@ services:
     container_name: workspace-agent
     environment:
       GRPC_PORT: 9000
-      NUCLEUS_URL: http://nucleus-stub:4000
+      NUCLEUS_URL: ${NUCLEUS_URL:-http://host.docker.internal:4000}
+      NUCLEUS_API_URL: ${NUCLEUS_API_URL:-http://host.docker.internal:4000/graphql}
+      NUCLEUS_UCL_URL: ${NUCLEUS_UCL_URL:-host.docker.internal:50051}
+      MCP_SERVER_URL: http://mcp-server:9100
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       POSTGRES_URL: postgres://agent:devpassword@postgres:5432/agent?sslmode=disable
       TEMPORAL_HOST: temporal:7233
@@ -67,32 +70,63 @@ services:
         condition: service_healthy
       temporal:
         condition: service_started
+      mcp-server:
+        condition: service_started
     ports:
-      - "9000:9000"
+      - "9002:9000"
+
+  # Keystore (Credential Store)
+  keystore:
+    build:
+      context: ./go-agent-service
+      dockerfile: Dockerfile.keystore
+    container_name: workspace-keystore
+    environment:
+      KEYSTORE_PORT: 9200
+      KEYSTORE_DATABASE_URL: postgres://agent:devpassword@postgres:5432/agent?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "9200:9200"
+
+  # MCP Server (UCL + Nucleus tool surface)
+  mcp-server:
+    build:
+      context: ./go-agent-service
+      dockerfile: Dockerfile.mcp
+    container_name: workspace-mcp
+    environment:
+      MCP_PORT: 9100
+      NUCLEUS_API_URL: ${NUCLEUS_API_URL:-http://host.docker.internal:4000/graphql}
+      NUCLEUS_UCL_URL: ${NUCLEUS_UCL_URL:-host.docker.internal:50051}
+      KEYSTORE_URL: http://keystore:9200
+      POSTGRES_URL: postgres://agent:devpassword@postgres:5432/agent?sslmode=disable
+      NUCLEUS_USERNAME: ${NUCLEUS_USERNAME:-dev-admin}
+      NUCLEUS_PASSWORD: ${NUCLEUS_PASSWORD:-password}
+      NUCLEUS_TENANT_ID: ${NUCLEUS_TENANT_ID:-default}
+    depends_on:
+      keystore:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+    ports:
+      - "9100:9100"
 
   # Rust Gateway
   rust-gateway:
     build:
-      context: ./rust-gateway
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: rust-gateway/Dockerfile
     container_name: workspace-gateway
     environment:
       GATEWAY_PORT: 8080
-      AGENT_SERVICE_URL: http://agent-service:9000
-      NUCLEUS_URL: http://nucleus-stub:4000
+      AGENT_SERVICE_URL: http://agent-service:9001
+      NUCLEUS_URL: ${NUCLEUS_URL:-http://host.docker.internal:4000}
     depends_on:
       - agent-service
     ports:
-      - "8080:8080"
-
-  # Nucleus Stub (existing)
-  nucleus-stub:
-    build:
-      context: ./nucleus-stub
-      dockerfile: Dockerfile
-    container_name: workspace-nucleus
-    ports:
-      - "4000:4000"
+      - "8082:8080"
 
   # Workspace Web (Next.js dev server)
   workspace-web:
@@ -102,8 +136,8 @@ services:
       target: dev
     container_name: workspace-web
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:8080
-      NEXT_PUBLIC_NUCLEUS_URL: http://localhost:4000/graphql
+      NEXT_PUBLIC_API_URL: http://localhost:8082
+      NUCLEUS_API_URL: ${NUCLEUS_API_URL:-http://host.docker.internal:4000/graphql}
     ports:
       - "3000:3000"
     volumes:

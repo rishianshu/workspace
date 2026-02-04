@@ -76,8 +76,12 @@ Credential store service for user-scoped tokens (separate from endpoint config).
 Create a `.env` file in the root directory:
 ```bash
 GEMINI_API_KEY=your_gemini_api_key
+NUCLEUS_URL=http://localhost:4000
 NUCLEUS_API_URL=http://localhost:4000/graphql
 NUCLEUS_UCL_URL=localhost:50051
+NUCLEUS_USERNAME=dev-admin
+NUCLEUS_PASSWORD=password
+NUCLEUS_TENANT_ID=default
 ```
 
 ### Running with Docker Compose
@@ -93,14 +97,14 @@ docker-compose logs -f
 | Service          | Port  | Description                |
 |------------------|-------|----------------------------|
 | workspace-web    | 3000  | Web frontend               |
-| rust-gateway     | 8080  | Edge gateway (HTTP/WS)     |
-| go-agent-service | 9000  | Agent gRPC service         |
+| rust-gateway     | 8082  | Edge gateway (HTTP/WS)     |
+| go-agent-service | 9002  | Agent gRPC service         |
 | mcp-server       | 9100  | MCP tools API              |
 | keystore         | 9200  | Credential store API       |
 | nucleus          | n/a   | External Nucleus GraphQL/UCL|
 | temporal-ui      | 8233  | Temporal Web UI            |
-| temporal         | 7233  | Temporal gRPC              |
-| postgres         | 5432  | PostgreSQL with pgvector   |
+| temporal         | 7234  | Temporal gRPC              |
+| postgres         | 5442  | PostgreSQL with pgvector   |
 
 ## 📚 Relevant Documentation
 
