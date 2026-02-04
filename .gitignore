@@ -9,6 +9,7 @@ vendor/
 dist/
 build/
 target/
+go-agent-service/agent-service
 
 # Environment files
 .env
