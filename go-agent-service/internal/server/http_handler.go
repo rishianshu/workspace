@@ -469,6 +469,52 @@ func (h *HTTPHandler) HandleListProjects(w http.ResponseWriter, r *http.Request)
 	json.NewEncoder(w).Encode(result)
 }
 
+// HandleGetProject handles GET /projects/:id
+func (h *HTTPHandler) HandleGetProject(w http.ResponseWriter, r *http.Request, id string) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	project, err := h.agent.GetNucleusClient().GetProject(r.Context(), id)
+	if err != nil {
+		h.logger.Errorw("Get project failed", "error", err, "project_id", id)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if project == nil {
+		http.Error(w, "Project not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(project)
+}
+
+// HandleListEndpoints handles GET /endpoints
+func (h *HTTPHandler) HandleListEndpoints(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	projectID := r.URL.Query().Get("projectId")
+	if projectID == "" {
+		http.Error(w, "projectId is required", http.StatusBadRequest)
+		return
+	}
+
+	endpoints, err := h.agent.GetNucleusClient().ListEndpoints(r.Context(), projectID)
+	if err != nil {
+		h.logger.Errorw("List endpoints failed", "error", err, "project_id", projectID)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{"endpoints": endpoints})
+}
+
 // ========================
 // App Registry Handlers
 // ========================

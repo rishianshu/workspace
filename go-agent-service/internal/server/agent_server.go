@@ -137,6 +137,11 @@ func (s *AgentServer) GetAppRegistry() appregistry.Store {
 	return s.appRegistry
 }
 
+// GetNucleusClient returns the Nucleus client instance.
+func (s *AgentServer) GetNucleusClient() *nucleus.Client {
+	return s.nucleus
+}
+
 // Chat handles a chat request
 func (s *AgentServer) Chat(ctx context.Context, req *ChatRequest) (*ChatResponse, error) {
 	provider := req.GetProvider()

@@ -347,34 +347,52 @@ pub async fn list_projects() -> impl IntoResponse {
 
 /// GET /api/projects/:id - Get project by ID
 pub async fn get_project(Path(id): Path<String>) -> impl IntoResponse {
-    // This would need a backend endpoint - stub for now
-    let project = Project {
-        id: id.clone(),
-        slug: "project".into(),
-        display_name: "Project".into(),
-        description: None,
-    };
-    
-    Json(project)
+    let url = format!("{}/projects/{}", get_agent_url(), id);
+
+    match get_client().await.get(&url).send().await {
+        Ok(resp) => {
+            if resp.status() == StatusCode::NOT_FOUND {
+                return (StatusCode::NOT_FOUND, "Project not found").into_response();
+            }
+            match resp.json::<serde_json::Value>().await {
+                Ok(project) => Json(project).into_response(),
+                Err(e) => {
+                    tracing::error!("Failed to parse project response: {}", e);
+                    (StatusCode::INTERNAL_SERVER_ERROR, "Failed to parse response").into_response()
+                }
+            }
+        }
+        Err(e) => {
+            tracing::error!("Failed to call go-agent /projects/:id: {}", e);
+            (StatusCode::SERVICE_UNAVAILABLE, "Agent service unavailable").into_response()
+        }
+    }
 }
 
 /// GET /api/endpoints - List endpoints
 pub async fn list_endpoints(Query(query): Query<ProjectQuery>) -> impl IntoResponse {
-    let _ = query.project_id;
-    // This would need a backend endpoint - stub for now
-    let endpoints = vec![
-        Endpoint {
-            id: "ep-1".into(),
-            nucleus_endpoint_id: "nucleus-ep-1".into(),
-            project_id: Some("proj-1".into()),
-            template_id: "http.jira".into(),
-            display_name: "Jira Cloud".into(),
-            source_system: Some("jira".into()),
-            capabilities: vec!["search".into(), "create_issue".into()],
+    let project_id = match query.project_id {
+        Some(value) => value,
+        None => {
+            return (StatusCode::BAD_REQUEST, "projectId is required").into_response();
+        }
+    };
+
+    let url = format!("{}/endpoints?projectId={}", get_agent_url(), project_id);
+
+    match get_client().await.get(&url).send().await {
+        Ok(resp) => match resp.json::<serde_json::Value>().await {
+            Ok(result) => Json(result).into_response(),
+            Err(e) => {
+                tracing::error!("Failed to parse endpoints response: {}", e);
+                (StatusCode::INTERNAL_SERVER_ERROR, "Failed to parse response").into_response()
+            }
         },
-    ];
-    
-    Json(endpoints)
+        Err(e) => {
+            tracing::error!("Failed to call go-agent /endpoints: {}", e);
+            (StatusCode::SERVICE_UNAVAILABLE, "Agent service unavailable").into_response()
+        }
+    }
 }
 
 /// POST /api/brain/search - Brain search (proxies to go-agent)
