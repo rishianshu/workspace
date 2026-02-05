@@ -9,7 +9,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"go.uber.org/zap"
@@ -17,20 +19,36 @@ import (
 
 // Client is the Nucleus GraphQL client
 type Client struct {
-	url        string
-	username   string
-	password   string
-	tenantID   string
-	httpClient *http.Client
-	logger     *zap.SugaredLogger
+	url                  string
+	username             string
+	password             string
+	tenantID             string
+	bearerToken          string
+	keycloakURL          string
+	keycloakRealm        string
+	keycloakClientID     string
+	keycloakClientSecret string
+	keycloakUsername     string
+	keycloakPassword     string
+	tokenExpiry          time.Time
+	tokenMu              sync.Mutex
+	httpClient           *http.Client
+	logger               *zap.SugaredLogger
 }
 
 // ClientConfig holds configuration for the Nucleus client
 type ClientConfig struct {
-	APIURL   string
-	Username string
-	Password string
-	TenantID string
+	APIURL               string
+	Username             string
+	Password             string
+	TenantID             string
+	BearerToken          string
+	KeycloakURL          string
+	KeycloakRealm        string
+	KeycloakClientID     string
+	KeycloakClientSecret string
+	KeycloakUsername     string
+	KeycloakPassword     string
 }
 
 // NewClient creates a new Nucleus client
@@ -48,10 +66,17 @@ func NewClient(url string, logger *zap.SugaredLogger) *Client {
 // NewClientWithConfig creates a new Nucleus client with full config
 func NewClientWithConfig(cfg ClientConfig, logger *zap.SugaredLogger) *Client {
 	return &Client{
-		url:      cfg.APIURL,
-		username: cfg.Username,
-		password: cfg.Password,
-		tenantID: cfg.TenantID,
+		url:                  cfg.APIURL,
+		username:             cfg.Username,
+		password:             cfg.Password,
+		tenantID:             cfg.TenantID,
+		bearerToken:          cfg.BearerToken,
+		keycloakURL:          cfg.KeycloakURL,
+		keycloakRealm:        cfg.KeycloakRealm,
+		keycloakClientID:     cfg.KeycloakClientID,
+		keycloakClientSecret: cfg.KeycloakClientSecret,
+		keycloakUsername:     cfg.KeycloakUsername,
+		keycloakPassword:     cfg.KeycloakPassword,
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
@@ -198,8 +223,11 @@ func (c *Client) execute(ctx context.Context, query string, variables map[string
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	// Add basic auth if configured
-	if c.username != "" && c.password != "" {
+	// Add bearer token if configured or can be fetched
+	if token := c.getBearerToken(ctx); token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	} else if c.username != "" && c.password != "" {
+		// Fallback to basic auth if configured
 		auth := base64.StdEncoding.EncodeToString([]byte(c.username + ":" + c.password))
 		req.Header.Set("Authorization", "Basic "+auth)
 	}
@@ -226,6 +254,85 @@ func (c *Client) execute(ctx context.Context, query string, variables map[string
 	}
 
 	return gqlResp.Data, nil
+}
+
+type keycloakTokenResponse struct {
+	AccessToken string `json:"access_token"`
+	ExpiresIn   int64  `json:"expires_in"`
+}
+
+func (c *Client) getBearerToken(ctx context.Context) string {
+	if c.bearerToken != "" && time.Now().Before(c.tokenExpiry) {
+		return c.bearerToken
+	}
+	if c.bearerToken != "" && c.tokenExpiry.IsZero() {
+		return c.bearerToken
+	}
+
+	if c.keycloakURL == "" || c.keycloakClientID == "" || c.keycloakUsername == "" || c.keycloakPassword == "" {
+		return ""
+	}
+
+	c.tokenMu.Lock()
+	defer c.tokenMu.Unlock()
+
+	if c.bearerToken != "" && time.Now().Before(c.tokenExpiry) {
+		return c.bearerToken
+	}
+
+	token, expires, err := c.fetchKeycloakToken(ctx)
+	if err != nil {
+		c.logger.Warnw("Failed to fetch Keycloak token", "error", err)
+		return ""
+	}
+	c.bearerToken = token
+	expirySeconds := expires
+	if expires > 60 {
+		expirySeconds = expires - 60
+	}
+	if expirySeconds <= 0 {
+		expirySeconds = 1
+	}
+	c.tokenExpiry = time.Now().Add(time.Duration(expirySeconds) * time.Second)
+	return c.bearerToken
+}
+
+func (c *Client) fetchKeycloakToken(ctx context.Context) (string, int64, error) {
+	tokenURL := fmt.Sprintf("%s/realms/%s/protocol/openid-connect/token", strings.TrimSuffix(c.keycloakURL, "/"), c.keycloakRealm)
+	form := url.Values{}
+	form.Set("grant_type", "password")
+	form.Set("client_id", c.keycloakClientID)
+	form.Set("username", c.keycloakUsername)
+	form.Set("password", c.keycloakPassword)
+	if c.keycloakClientSecret != "" {
+		form.Set("client_secret", c.keycloakClientSecret)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", tokenURL, strings.NewReader(form.Encode()))
+	if err != nil {
+		return "", 0, err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return "", 0, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", 0, err
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return "", 0, fmt.Errorf("keycloak token error: %s", string(body))
+	}
+
+	var tokenResp keycloakTokenResponse
+	if err := json.Unmarshal(body, &tokenResp); err != nil {
+		return "", 0, err
+	}
+	return tokenResp.AccessToken, tokenResp.ExpiresIn, nil
 }
 
 // ========================

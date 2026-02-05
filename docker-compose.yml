@@ -61,7 +61,15 @@ services:
       NUCLEUS_URL: ${NUCLEUS_URL:-http://host.docker.internal:4000}
       NUCLEUS_API_URL: ${NUCLEUS_API_URL:-http://host.docker.internal:4000/graphql}
       NUCLEUS_UCL_URL: ${NUCLEUS_UCL_URL:-host.docker.internal:50051}
+      NUCLEUS_BEARER_TOKEN: ${NUCLEUS_BEARER_TOKEN:-}
+      KEYCLOAK_URL: ${KEYCLOAK_URL:-http://host.docker.internal:8081}
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-nucleus}
+      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID:-}
+      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET:-}
+      KEYCLOAK_USERNAME: ${KEYCLOAK_USERNAME:-}
+      KEYCLOAK_PASSWORD: ${KEYCLOAK_PASSWORD:-}
       MCP_SERVER_URL: http://mcp-server:9100
+      MCP_BEARER_TOKEN: ${MCP_BEARER_TOKEN:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       POSTGRES_URL: postgres://agent:devpassword@postgres:5432/agent?sslmode=disable
       TEMPORAL_HOST: temporal:7233
@@ -100,6 +108,13 @@ services:
       MCP_PORT: 9100
       NUCLEUS_API_URL: ${NUCLEUS_API_URL:-http://host.docker.internal:4000/graphql}
       NUCLEUS_UCL_URL: ${NUCLEUS_UCL_URL:-host.docker.internal:50051}
+      NUCLEUS_BEARER_TOKEN: ${NUCLEUS_BEARER_TOKEN:-}
+      KEYCLOAK_URL: ${KEYCLOAK_URL:-http://host.docker.internal:8081}
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-nucleus}
+      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID:-}
+      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET:-}
+      KEYCLOAK_USERNAME: ${KEYCLOAK_USERNAME:-}
+      KEYCLOAK_PASSWORD: ${KEYCLOAK_PASSWORD:-}
       KEYSTORE_URL: http://keystore:9200
       POSTGRES_URL: postgres://agent:devpassword@postgres:5432/agent?sslmode=disable
       NUCLEUS_USERNAME: ${NUCLEUS_USERNAME:-dev-admin}

@@ -147,3 +147,7 @@ Scope
 - Avoid hardcoded IDs; rely on declared capabilities and config.
 - Deterministic behavior unless explicitly required otherwise.
 - Conversations are created only with a valid Nucleus project ID; creation is blocked until a project is selected.
+
+## Credential Strategy
+- **Now:** credentials are supplied via env and pre-registered tokens; agents must not prompt for credentials.
+- **Later:** Workspace maps logged-in users to Nucleus credentials so calls are user-scoped without prompts.

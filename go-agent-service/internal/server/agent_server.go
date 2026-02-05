@@ -46,7 +46,19 @@ func NewAgentServer(cfg *config.Config, logger *zap.SugaredLogger) *AgentServer 
 	runner := agent.NewRunner(cfg.GeminiAPIKey, logger)
 	llmRouter := agent.NewLLMRouter(cfg.GeminiAPIKey, cfg.OpenAIAPIKey)
 	memStore := memory.NewShortTermStore()
-	nucleusClient := nucleus.NewClient(cfg.NucleusURL, logger)
+	nucleusClient := nucleus.NewClientWithConfig(nucleus.ClientConfig{
+		APIURL:               cfg.Nucleus.APIURL,
+		Username:             cfg.Nucleus.Username,
+		Password:             cfg.Nucleus.Password,
+		TenantID:             cfg.Nucleus.TenantID,
+		BearerToken:          cfg.Nucleus.BearerToken,
+		KeycloakURL:          cfg.Nucleus.KeycloakURL,
+		KeycloakRealm:        cfg.Nucleus.KeycloakRealm,
+		KeycloakClientID:     cfg.Nucleus.KeycloakClientID,
+		KeycloakClientSecret: cfg.Nucleus.KeycloakClientSecret,
+		KeycloakUsername:     cfg.Nucleus.KeycloakUsername,
+		KeycloakPassword:     cfg.Nucleus.KeycloakPassword,
+	}, logger)
 	orchestrator := agentctx.NewOrchestrator(nucleusClient, logger)
 
 	// Try to initialize episodic memory with pgvector (optional)

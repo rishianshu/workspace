@@ -16,13 +16,26 @@ import (
 
 // Client is an HTTP client for the MCP service.
 type Client struct {
-	baseURL string
-	http    *http.Client
-	logger  *zap.SugaredLogger
+	baseURL   string
+	http      *http.Client
+	logger    *zap.SugaredLogger
+	authToken string
+}
+
+// ClientConfig holds configuration for the MCP client.
+type ClientConfig struct {
+	BaseURL   string
+	AuthToken string
 }
 
 // NewClient creates a new MCP client.
 func NewClient(baseURL string, logger *zap.SugaredLogger) *Client {
+	return NewClientWithConfig(ClientConfig{BaseURL: baseURL}, logger)
+}
+
+// NewClientWithConfig creates a new MCP client with config.
+func NewClientWithConfig(cfg ClientConfig, logger *zap.SugaredLogger) *Client {
+	baseURL := cfg.BaseURL
 	if baseURL == "" {
 		baseURL = "http://localhost:9100"
 	}
@@ -32,7 +45,8 @@ func NewClient(baseURL string, logger *zap.SugaredLogger) *Client {
 		http: &http.Client{
 			Timeout: 15 * time.Second,
 		},
-		logger: logger,
+		logger:    logger,
+		authToken: cfg.AuthToken,
 	}
 }
 
@@ -52,6 +66,9 @@ func (c *Client) ListTools(ctx context.Context, userID, projectID string) ([]Too
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return nil, err
+	}
+	if c.authToken != "" {
+		req.Header.Set("Authorization", "Bearer "+c.authToken)
 	}
 
 	resp, err := c.http.Do(req)
@@ -85,6 +102,9 @@ func (c *Client) ExecuteTool(ctx context.Context, call ToolCall) (*Result, error
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	if c.authToken != "" {
+		req.Header.Set("Authorization", "Bearer "+c.authToken)
+	}
 
 	resp, err := c.http.Do(req)
 	if err != nil {

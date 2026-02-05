@@ -82,7 +82,46 @@ NUCLEUS_UCL_URL=localhost:50051
 NUCLEUS_USERNAME=dev-admin
 NUCLEUS_PASSWORD=password
 NUCLEUS_TENANT_ID=default
+NUCLEUS_BEARER_TOKEN= # optional; if set, preferred over basic auth
+KEYCLOAK_URL=http://localhost:8081
+KEYCLOAK_REALM=nucleus
+KEYCLOAK_CLIENT_ID= # required for token fetch (e.g., jira-plus-plus)
+KEYCLOAK_CLIENT_SECRET= # optional
+KEYCLOAK_USERNAME= # optional; falls back to NUCLEUS_USERNAME
+KEYCLOAK_PASSWORD= # optional; falls back to NUCLEUS_PASSWORD
+MCP_BEARER_TOKEN= # optional; auth for MCP server
 ```
+
+### Nucleus GraphQL Auth (Keycloak)
+Nucleus GraphQL expects a Bearer token. You can either provide `NUCLEUS_BEARER_TOKEN` or let the agent service fetch one via Keycloak.
+
+Helper script:
+```bash
+scripts/fetch-keycloak-token.sh
+```
+
+Token retrieval (curl):
+```bash
+curl -s "http://localhost:8081/realms/nucleus/protocol/openid-connect/token" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=password" \
+  -d "client_id=jira-plus-plus" \
+  -d "username=$KEYCLOAK_USERNAME" \
+  -d "password=$KEYCLOAK_PASSWORD"
+```
+
+Manual GraphQL example (replace token output):
+```bash
+TOKEN=$(scripts/fetch-keycloak-token.sh)
+curl -s http://localhost:4010/graphql \\
+  -H "Content-Type: application/json" \\
+  -H "Authorization: Bearer $TOKEN" \\
+  -d '{"query":"{ metadataProjects { id } }"}'
+```
+
+### Credential Strategy
+- **Now:** credentials are supplied via env and pre-registered tokens. Agents must not prompt for credentials at runtime.
+- **Later:** Workspace will map logged-in users to Nucleus credentials so API calls are user-scoped without prompts.
 
 ### Running with Docker Compose
 ```bash

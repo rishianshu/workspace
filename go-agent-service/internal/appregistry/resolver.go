@@ -3,6 +3,7 @@ package appregistry
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/antigravity/go-agent-service/internal/keystore"
 	"github.com/antigravity/go-agent-service/internal/nucleus"
@@ -65,14 +66,17 @@ func (r *Resolver) ResolveApp(ctx context.Context, userID, projectID, appID stri
 	if r.Nucleus != nil && projectApp.EndpointID != "" {
 		endpoint, err := r.Nucleus.GetEndpoint(ctx, projectApp.EndpointID)
 		if err != nil {
-			return nil, err
-		}
-		resolved.Endpoint = endpoint
-		if endpoint != nil {
-			if endpoint.TemplateID != "" {
-				resolved.TemplateID = endpoint.TemplateID
+			if !shouldIgnoreNucleusError(err) {
+				return nil, err
 			}
-			resolved.DelegatedEnabled = endpoint.DelegatedConnected
+		} else {
+			resolved.Endpoint = endpoint
+			if endpoint != nil {
+				if endpoint.TemplateID != "" {
+					resolved.TemplateID = endpoint.TemplateID
+				}
+				resolved.DelegatedEnabled = endpoint.DelegatedConnected
+			}
 		}
 	}
 
@@ -114,18 +118,29 @@ func (r *Resolver) ResolveProjectApps(ctx context.Context, userID, projectID str
 		if r.Nucleus != nil && projectApp.EndpointID != "" {
 			endpoint, err := r.Nucleus.GetEndpoint(ctx, projectApp.EndpointID)
 			if err != nil {
-				return nil, err
-			}
-			entry.Endpoint = endpoint
-			if endpoint != nil {
-				if endpoint.TemplateID != "" {
-					entry.TemplateID = endpoint.TemplateID
+				if !shouldIgnoreNucleusError(err) {
+					return nil, err
 				}
-				entry.DelegatedEnabled = endpoint.DelegatedConnected
+			} else {
+				entry.Endpoint = endpoint
+				if endpoint != nil {
+					if endpoint.TemplateID != "" {
+						entry.TemplateID = endpoint.TemplateID
+					}
+					entry.DelegatedEnabled = endpoint.DelegatedConnected
+				}
 			}
 		}
 		resolved = append(resolved, entry)
 	}
 
 	return resolved, nil
+}
+
+func shouldIgnoreNucleusError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "Missing tenant or project context")
 }

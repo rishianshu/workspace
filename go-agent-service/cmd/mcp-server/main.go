@@ -96,10 +96,17 @@ func main() {
 
 	// Nucleus tool for brain search
 	nucleusClient := nucleus.NewClientWithConfig(nucleus.ClientConfig{
-		APIURL:   cfg.Nucleus.APIURL,
-		Username: cfg.Nucleus.Username,
-		Password: cfg.Nucleus.Password,
-		TenantID: cfg.Nucleus.TenantID,
+		APIURL:               cfg.Nucleus.APIURL,
+		Username:             cfg.Nucleus.Username,
+		Password:             cfg.Nucleus.Password,
+		TenantID:             cfg.Nucleus.TenantID,
+		BearerToken:          cfg.Nucleus.BearerToken,
+		KeycloakURL:          cfg.Nucleus.KeycloakURL,
+		KeycloakRealm:        cfg.Nucleus.KeycloakRealm,
+		KeycloakClientID:     cfg.Nucleus.KeycloakClientID,
+		KeycloakClientSecret: cfg.Nucleus.KeycloakClientSecret,
+		KeycloakUsername:     cfg.Nucleus.KeycloakUsername,
+		KeycloakPassword:     cfg.Nucleus.KeycloakPassword,
 	}, sugar)
 	nucleusTool := tools.NewNucleusSearchTool(nucleusClient)
 

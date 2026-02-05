@@ -21,7 +21,10 @@ type Registry struct {
 // NewRegistry creates a new tool registry
 func NewRegistry(cfg *config.Config, logger *zap.SugaredLogger) *Registry {
 	// Create MCP client
-	mcpClient := mcp.NewClient(cfg.MCPServerURL, logger)
+	mcpClient := mcp.NewClientWithConfig(mcp.ClientConfig{
+		BaseURL:   cfg.MCPServerURL,
+		AuthToken: cfg.MCPAuthToken,
+	}, logger)
 
 	// Store Core URL (default to localhost:9099)
 	storeURL := "localhost:9099"

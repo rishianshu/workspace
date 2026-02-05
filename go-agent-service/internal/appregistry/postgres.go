@@ -294,7 +294,7 @@ func (s *PostgresStore) scanProjectApps(ctx context.Context, query string, args 
 
 func marshalConfig(config map[string]any) ([]byte, error) {
 	if config == nil {
-		return nil, nil
+		return []byte("null"), nil
 	}
 	return json.Marshal(config)
 }
