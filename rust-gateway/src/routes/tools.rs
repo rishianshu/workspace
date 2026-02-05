@@ -417,3 +417,71 @@ pub async fn brain_search(Json(req): Json<BrainSearchRequest>) -> impl IntoRespo
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::{extract::Path, routing::get, Router};
+    use http_body_util::BodyExt;
+    use std::net::SocketAddr;
+    use tokio::net::TcpListener;
+
+    async fn start_mock_server() -> SocketAddr {
+        let app = Router::new()
+            .route("/projects/:id", get(|Path(id): Path<String>| async move {
+                if id == "missing" {
+                    axum::http::StatusCode::NOT_FOUND.into_response()
+                } else {
+                    axum::response::Json(serde_json::json!({ "id": id })).into_response()
+                }
+            }))
+            .route("/endpoints", get(|| async {
+                axum::response::Json(serde_json::json!({ "endpoints": [{ "id": "ep-1" }] }))
+            }));
+
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move {
+            axum::serve(listener, app).await.unwrap();
+        });
+
+        addr
+    }
+
+    #[tokio::test]
+    async fn list_endpoints_requires_project_id() {
+        let response = list_endpoints(Query(ProjectQuery { project_id: None }))
+            .await
+            .into_response();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        assert!(std::str::from_utf8(&body).unwrap().contains("projectId"));
+    }
+
+    #[tokio::test]
+    async fn get_project_proxies_404() {
+        let addr = start_mock_server().await;
+        std::env::set_var("AGENT_SERVICE_URL", format!("http://{}", addr));
+
+        let response = get_project(Path("missing".to_string()))
+            .await
+            .into_response();
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn list_endpoints_proxies_success() {
+        let addr = start_mock_server().await;
+        std::env::set_var("AGENT_SERVICE_URL", format!("http://{}", addr));
+
+        let response = list_endpoints(Query(ProjectQuery {
+            project_id: Some("proj-1".to_string()),
+        }))
+        .await
+        .into_response();
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let text = std::str::from_utf8(&body).unwrap();
+        assert!(text.contains("endpoints"));
+    }
+}

@@ -37,6 +37,7 @@ anyhow = "1.0"
 
 # HTTP client for Go service
 reqwest = { version = "0.12", features = ["json"] }
+http-body-util = "0.1"
 
 # Note: GraphQL (async-graphql) removed due to version conflicts
 # Using REST API for tools endpoints instead
