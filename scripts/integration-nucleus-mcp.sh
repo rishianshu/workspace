@@ -11,6 +11,31 @@ export TOKEN
 TOKEN=$(scripts/fetch-keycloak-token.sh)
 
 python3 - <<'PY'
+import base64, json, os, sys
+
+token = os.environ.get("TOKEN", "")
+expected = os.environ.get("KEYCLOAK_ISSUER_EXPECTED", "http://localhost:8081/realms/nucleus")
+if not token:
+    print("Missing TOKEN")
+    sys.exit(1)
+parts = token.split(".")
+if len(parts) < 2:
+    print("Invalid TOKEN format")
+    sys.exit(1)
+payload = parts[1]
+payload += "=" * (-len(payload) % 4)
+try:
+    data = json.loads(base64.urlsafe_b64decode(payload.encode()))
+except Exception as exc:
+    print("Failed to decode TOKEN payload:", exc)
+    sys.exit(1)
+issuer = data.get("iss")
+if issuer != expected:
+    print(f"Unexpected token issuer: {issuer} (expected {expected})")
+    sys.exit(1)
+PY
+
+python3 - <<'PY'
 import json, os, shlex, sys, urllib.request
 
 token = os.environ.get("TOKEN", "")
