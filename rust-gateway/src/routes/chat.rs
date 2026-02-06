@@ -9,6 +9,7 @@ use crate::proxy::grpc_client::{AgentServiceClient, ChatRequest as ClientChatReq
 #[derive(Debug, Deserialize)]
 pub struct ChatRequest {
     pub query: String,
+    #[serde(rename = "conversationId", alias = "conversation_id")]
     pub conversation_id: String,
     #[serde(default)]
     pub context_entities: Vec<String>,

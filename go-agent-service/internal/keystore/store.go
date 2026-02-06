@@ -9,6 +9,8 @@ import (
 	"encoding/json"
 	"errors"
 	"time"
+
+	"github.com/lib/pq"
 )
 
 var (
@@ -90,6 +92,11 @@ func (s *PostgresStore) Store(ctx context.Context, cred *StoredCredential) (stri
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 	`
 
+	var scopes any
+	if cred.Scopes != nil {
+		scopes = pq.Array(cred.Scopes)
+	}
+
 	_, err = s.db.ExecContext(ctx, query,
 		token,
 		cred.OwnerType,
@@ -97,7 +104,7 @@ func (s *PostgresStore) Store(ctx context.Context, cred *StoredCredential) (stri
 		cred.EndpointID,
 		credJSON,
 		cred.CredentialType,
-		cred.Scopes,
+		scopes,
 		cred.ExpiresAt,
 	)
 	if err != nil {
@@ -118,6 +125,7 @@ func (s *PostgresStore) Get(ctx context.Context, keyToken string) (*StoredCreden
 
 	var cred StoredCredential
 	var credJSON []byte
+	var scopes []string
 	
 	err := s.db.QueryRowContext(ctx, query, keyToken).Scan(
 		&cred.KeyToken,
@@ -126,7 +134,7 @@ func (s *PostgresStore) Get(ctx context.Context, keyToken string) (*StoredCreden
 		&cred.EndpointID,
 		&credJSON,
 		&cred.CredentialType,
-		&cred.Scopes,
+		pq.Array(&scopes),
 		&cred.ExpiresAt,
 		&cred.RefreshedAt,
 		&cred.CreatedAt,
@@ -141,6 +149,7 @@ func (s *PostgresStore) Get(ctx context.Context, keyToken string) (*StoredCreden
 	if err := json.Unmarshal(credJSON, &cred.Credentials); err != nil {
 		return nil, err
 	}
+	cred.Scopes = scopes
 
 	// Check expiration
 	if cred.ExpiresAt != nil && time.Now().After(*cred.ExpiresAt) {

@@ -71,6 +71,7 @@ services:
       MCP_SERVER_URL: http://mcp-server:9100
       MCP_BEARER_TOKEN: ${MCP_BEARER_TOKEN:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
       POSTGRES_URL: postgres://agent:devpassword@postgres:5432/agent?sslmode=disable
       TEMPORAL_HOST: temporal:7233
     depends_on:
@@ -152,7 +153,13 @@ services:
     container_name: workspace-web
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:8082
-      NUCLEUS_API_URL: ${NUCLEUS_API_URL:-http://host.docker.internal:4000/graphql}
+      NEXT_PUBLIC_KEYCLOAK_URL: ${NEXT_PUBLIC_KEYCLOAK_URL:-http://localhost:8081}
+      NEXT_PUBLIC_KEYCLOAK_REALM: ${NEXT_PUBLIC_KEYCLOAK_REALM:-nucleus}
+      NEXT_PUBLIC_KEYCLOAK_CLIENT_ID: ${NEXT_PUBLIC_KEYCLOAK_CLIENT_ID:-jira-plus-plus}
+      NUCLEUS_API_URL: ${NUCLEUS_API_URL:-http://host.docker.internal:4010/graphql}
+      AGENT_GATEWAY_URL: http://rust-gateway:8080
+      AGENT_SERVICE_URL: http://agent-service:9001
+      KEYSTORE_URL: http://keystore:9200
     ports:
       - "3000:3000"
     volumes:
