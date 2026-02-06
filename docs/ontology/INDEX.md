@@ -7,6 +7,8 @@ Purpose
 Scope
 - Applies to runtime services, control-plane APIs, agent workflows, and data stores.
 - Planned services are explicitly marked as such.
+- Architecture spec: `docs/architecture/agent-adk.md` (internal ADK runtime).
+- Agent engine spec: `docs/architecture/agent-engine.md` (ReAct + function calling).
 
 ## Core Entities
 
@@ -50,6 +52,8 @@ Scope
   - Talks to `rust-gateway` for streaming and agent operations.
   - Talks to Nucleus GraphQL via API routes for project/context metadata.
   - Agent reasoning tools use MCP (UCL + brain APIs) instead of direct UI calls.
+  - Uses Keycloak (same realm, separate client) for user login and bearer token injection.
+  - App catalog + subscription flow uses app registry + keystore via API routes.
 
 ### rust-gateway
 - Purpose: Edge HTTP/WS gateway, streaming responses, routing to agent service.
@@ -151,3 +155,13 @@ Scope
 ## Credential Strategy
 - **Now:** credentials are supplied via env and pre-registered tokens; agents must not prompt for credentials.
 - **Later:** Workspace maps logged-in users to Nucleus credentials so calls are user-scoped without prompts.
+
+## Auth + App Subscription Flow
+1) User logs in via Keycloak (Workspace client).
+2) Workspace fetches projects + endpoints via Nucleus GraphQL using the bearer token.
+3) App catalog shows endpoints and template auth modes per project.
+4) Subscribing an app:
+   - Upserts app instance (template + instance key = endpoint ID).
+   - Stores credentials in keystore → key token.
+   - Upserts user app (user + app instance + credential ref).
+   - Upserts project app (project + user app + endpoint ID).

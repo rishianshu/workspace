@@ -11,6 +11,7 @@ SUMMARY="$2"
 if [ -z "$SUMMARY" ]; then
   SUMMARY="requirements-based review"
 fi
+REVIEW_MODEL="${CODEX_REVIEW_MODEL:-gpt-5-codex}"
 
 /Users/rishikeshkumar/Development/Workspace/scripts/check-codex-config.sh
 
@@ -42,7 +43,7 @@ printf '%s\n' "--------------------------------------------------" >> "$LOG_FILE
 
 DIFF=$(git diff --no-color)
 
-codex exec "You are reviewing a commit against explicit requirements. Use the full context below.
+codex exec --model "$REVIEW_MODEL" "You are reviewing a commit against explicit requirements. Use the full context below.
 
 INTENT:\n$(cat "$REQ_INTENT")\n\nSPEC:\n$(cat "$REQ_SPEC")\n\nACCEPTANCE:\n$(cat "$REQ_ACCEPT")\n\nGIT DIFF:\n$DIFF\n\nTask: For each Acceptance criterion, mark PASS or FAIL and cite evidence with file paths and line references when possible. Then list any additional risks/regressions not covered by Acceptance." >> "$LOG_FILE"
 

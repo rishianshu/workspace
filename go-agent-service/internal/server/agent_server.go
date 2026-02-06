@@ -12,6 +12,8 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/antigravity/go-agent-service/internal/agent"
+	"github.com/antigravity/go-agent-service/internal/agentengine"
+	"github.com/antigravity/go-agent-service/internal/agentengine/adapters"
 	"github.com/antigravity/go-agent-service/internal/appregistry"
 	"github.com/antigravity/go-agent-service/internal/config"
 	agentctx "github.com/antigravity/go-agent-service/internal/context"
@@ -31,6 +33,8 @@ type AgentServer struct {
 	llmRouter      *agent.LLMRouter
 	orchestrator   *agentctx.Orchestrator
 	memory         memory.Store
+	episodicMemory memory.MemoryStore
+	agentEngine    *agentengine.Engine
 	nucleus        *nucleus.Client
 	uclRegistry    *ucl.StubToolRegistry
 	workflowEngine *workflow.Engine
@@ -117,6 +121,23 @@ func NewAgentServer(cfg *config.Config, logger *zap.SugaredLogger) *AgentServer 
 		}
 	}
 
+	var engine *agentengine.Engine
+	engineConfig := agentengine.Config{
+		Planner:     adapters.NewHeuristicPlanner(),
+		LLM:         adapters.NewRouterLLMClient(llmRouter),
+		Tools:       adapters.NewRegistryToolSource(toolRegistry),
+		Executor:    adapters.NewRegistryExecutor(toolRegistry),
+		Memory:      adapters.NewMemoryAdapter(episodicStore),
+		Context:     adapters.NewDefaultContextAssembler(orchestrator, episodicStore, logger),
+		Policy:      adapters.NewAllowAllPolicy(),
+		ToolTimeout: 20 * time.Second,
+		MaxSteps:    3,
+	}
+	engine, err = agentengine.NewEngine(engineConfig)
+	if err != nil {
+		logger.Warnw("Failed to initialize AgentEngine", "error", err)
+	}
+
 	return &AgentServer{
 		config:         cfg,
 		logger:         logger,
@@ -124,6 +145,8 @@ func NewAgentServer(cfg *config.Config, logger *zap.SugaredLogger) *AgentServer 
 		llmRouter:      llmRouter,
 		orchestrator:   orchestrator,
 		memory:         memStore,
+		episodicMemory: episodicStore,
+		agentEngine:    engine,
 		nucleus:        nucleusClient,
 		uclRegistry:    uclRegistry,
 		workflowEngine: wfEngine,
@@ -166,44 +189,34 @@ func (s *AgentServer) Chat(ctx context.Context, req *ChatRequest) (*ChatResponse
 		"model", model,
 	)
 
-	// Convert history from proto to agent format
-	history := make([]agent.HistoryMessage, 0, len(req.History))
+	// Convert history from proto to engine format
+	engineHistory := make([]agentengine.HistoryMessage, 0, len(req.History))
 	for _, h := range req.History {
-		history = append(history, agent.HistoryMessage{
+		engineHistory = append(engineHistory, agentengine.HistoryMessage{
 			Role:    h.Role,
 			Content: h.Content,
 		})
 	}
 
-	// Build context from Knowledge Graph
-	agentCtx, err := s.orchestrator.Process(ctx, req.Query, req.ContextEntities)
+	userID, projectID := getUserProject(ctx)
+	engineReq := agentengine.Request{
+		Query:           req.Query,
+		SessionID:       req.ConversationId,
+		UserID:          userID,
+		ProjectID:       projectID,
+		ContextEntities: req.ContextEntities,
+		History:         engineHistory,
+		Provider:        provider,
+		Model:           model,
+	}
+
+	if s.agentEngine == nil {
+		return nil, fmt.Errorf("agent engine not configured")
+	}
+
+	engineResp, err := s.agentEngine.Run(ctx, engineReq)
 	if err != nil {
-		s.logger.Warnw("Context processing failed", "error", err)
-		// Continue without KG context
-	}
-	s.logger.Debugw("Context built", "entities", len(agentCtx.Entities), "nodes", len(agentCtx.RetrievedNodes))
-
-	// Build system prompt with Knowledge Graph context and UCL tools
-	kgContext := ""
-	if agentCtx != nil {
-		kgContext = agentCtx.FormatForLLM()
-	}
-
-	// Get dynamic tools from registry (MCP + Store)
-	dynamicToolsPrompt := s.formatDynamicToolsForLLM(ctx)
-
-	systemPrompt := "You are a helpful AI assistant for developers. Be concise and helpful."
-	if kgContext != "" {
-		systemPrompt = systemPrompt + "\n\n" + kgContext
-	}
-	if dynamicToolsPrompt != "" {
-		systemPrompt = systemPrompt + "\n\n## Available Tools\n" + dynamicToolsPrompt
-	}
-
-	// Use LLM router for provider selection
-	response, err := s.llmRouter.GenerateResponse(ctx, provider, model, req.Query, systemPrompt, history)
-	if err != nil {
-		s.logger.Errorw("LLM router failed", "error", err, "provider", provider)
+		s.logger.Errorw("Agent engine failed", "error", err)
 		return nil, err
 	}
 
@@ -217,11 +230,11 @@ func (s *AgentServer) Chat(ctx context.Context, req *ChatRequest) (*ChatResponse
 			Content:  `{"summary": "Data Pipeline Workflow", "schedule": "@daily", "status": "draft", "yaml": "name: data-pipeline\nsteps:\n  - name: fetch-data\n    action: ucl.fetch\n"}`,
 			Language: stringPtr("json"),
 		})
-		response += "\n\nI've created a draft workflow for you. You can review it below."
+		engineResp.Text += "\n\nI've created a draft workflow for you. You can review it below."
 	}
 
 	return &ChatResponse{
-		Response:  response,
+		Response:  engineResp.Text,
 		Reasoning: nil,
 		Artifacts: artifacts,
 		Citations: nil,
