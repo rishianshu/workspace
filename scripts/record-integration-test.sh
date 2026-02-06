@@ -15,6 +15,13 @@ fi
 
 echo "[workspace] Running integration tests: $CMD"
 
+# Load local environment defaults for scripted runs.
+if [ -f ".env" ]; then
+  set -a
+  . ./.env
+  set +a
+fi
+
 if [ "$CMD" = "$DEFAULT_CMD" ]; then
   sh "$CMD"
 else

@@ -7,6 +7,34 @@ GATEWAY_URL=${GATEWAY_URL:-http://localhost:8082}
 PROJECT_ID=${PROJECT_ID:-global}
 USER_ID=${USER_ID:-dev-admin}
 
+normalize_local_url() {
+  local input="${1:-}"
+  if [ -z "$input" ]; then
+    printf '%s' "$input"
+    return 0
+  fi
+  case "$input" in
+    *host.docker.internal*)
+      if python3 - <<'PY' >/dev/null 2>&1
+import socket
+socket.getaddrinfo("host.docker.internal", None)
+PY
+      then
+        printf '%s' "$input"
+      else
+        printf '%s' "$input" | sed 's/host\.docker\.internal/localhost/g'
+      fi
+      ;;
+    *)
+      printf '%s' "$input"
+      ;;
+  esac
+}
+
+NUCLEUS_API_URL="$(normalize_local_url "$NUCLEUS_API_URL")"
+MCP_URL="$(normalize_local_url "$MCP_URL")"
+GATEWAY_URL="$(normalize_local_url "$GATEWAY_URL")"
+
 export TOKEN
 TOKEN=$(scripts/fetch-keycloak-token.sh)
 

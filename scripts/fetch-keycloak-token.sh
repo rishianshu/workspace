@@ -8,6 +8,32 @@ KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET:-}
 USERNAME=${KEYCLOAK_USERNAME:-${NUCLEUS_USERNAME:-}}
 PASSWORD=${KEYCLOAK_PASSWORD:-${NUCLEUS_PASSWORD:-}}
 
+normalize_local_url() {
+  local input="${1:-}"
+  if [ -z "$input" ]; then
+    printf '%s' "$input"
+    return 0
+  fi
+  case "$input" in
+    *host.docker.internal*)
+      if python3 - <<'PY' >/dev/null 2>&1
+import socket
+socket.getaddrinfo("host.docker.internal", None)
+PY
+      then
+        printf '%s' "$input"
+      else
+        printf '%s' "$input" | sed 's/host\.docker\.internal/localhost/g'
+      fi
+      ;;
+    *)
+      printf '%s' "$input"
+      ;;
+  esac
+}
+
+KEYCLOAK_URL="$(normalize_local_url "$KEYCLOAK_URL")"
+
 if [ -z "$KEYCLOAK_CLIENT_ID" ]; then
   echo "KEYCLOAK_CLIENT_ID is required" >&2
   exit 1
