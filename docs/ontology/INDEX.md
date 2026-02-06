@@ -54,6 +54,7 @@ Scope
   - Agent reasoning tools use MCP (UCL + brain APIs) instead of direct UI calls.
   - Uses Keycloak (same realm, separate client) for user login and bearer token injection.
   - App catalog + subscription flow uses app registry + keystore via API routes.
+  - App/credential API proxies enforce bearer validation and user-scoped mutations.
 
 ### rust-gateway
 - Purpose: Edge HTTP/WS gateway, streaming responses, routing to agent service.
